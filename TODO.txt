@@ -1,0 +1,30 @@
+Prueba Técnica - Desarrollador Full
+Stack
+Sistema de Chat
+Descripción General
+Desarrollar una aplicación de chat en tiempo real que permita comunicación entre usuarios,
+utilizando Supabase como backend y react con typescript para el frontend.
+
+Objetivos:
+Utiliza las habilidades técnicas correspondiente, crea una arquitectura sostenible y escalable, ten mucha atención al detalle.
+
+Requerimientos Técnicos:
+
+Backend: Supabase 
+Frontend: React 
+
+Funcionalidades:
+Sistema de chat funcional con comunicación en tiempo real
+
+Funcionalidades Mínimas Requeridas
+1. Autenticación de usuarios
+2. Chat 1 a 1 - Comunicación directa entre dos usuarios
+3. Chat grupal - Creación y participación en grupos de chat
+4. Tiempo real - Mensajes se deben mostrar instantáneamente
+
+Consideraciones Adicionales
+● Debe ser responsive
+● Debe tener una interfaz intuitiva
+● Implementar medidas de seguridad 
+● Con un codigo bien organizado utilizando buenas practicas de programacion
+● Una buena documentación: Claridad y completitud
