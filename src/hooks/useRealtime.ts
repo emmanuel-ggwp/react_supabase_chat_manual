@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import type { RealtimeChannel, RealtimeChannelOptions, RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 
@@ -41,7 +41,10 @@ type UseRealtimeOptions = {
 export function useRealtime({ channel, config, bindings, enabled = true, onStatusChange, onError }: UseRealtimeOptions) {
   const [realtimeChannel, setRealtimeChannel] = useState<RealtimeChannel | null>(null);
 
-  const memoizedBindings = useMemo(() => bindings, [bindings]);
+  const memoizedBindings = useMemo(() => bindings, [JSON.stringify(bindings)]);
+  const memoizedOnError = useCallback(onError ?? (() => {}), []);
+  const memoizedOnStatusChange = useCallback(onStatusChange ?? (() => {}), []);
+  const memoizedConfig = useMemo(() => config, [JSON.stringify(config)]);
 
   useEffect(() => {
     if (!enabled) {
@@ -49,7 +52,7 @@ export function useRealtime({ channel, config, bindings, enabled = true, onStatu
       return;
     }
 
-    const clientChannel = config ? supabase.channel(channel, config) : supabase.channel(channel);
+    const clientChannel = memoizedConfig ? supabase.channel(channel, memoizedConfig) : supabase.channel(channel);
     const channelOn = clientChannel.on.bind(clientChannel) as ChannelOn;
 
     memoizedBindings.forEach((binding: Binding) => {
@@ -87,10 +90,10 @@ export function useRealtime({ channel, config, bindings, enabled = true, onStatu
 
     clientChannel.subscribe((status: ChannelStatus, error?: unknown) => {
       if (status === 'CHANNEL_ERROR') {
-        onError?.(error ?? new Error(`Error en el canal ${channel}`));
+        memoizedOnError?.(error ?? new Error(`Error en el canal ${channel}`));
       }
 
-      onStatusChange?.(status);
+      memoizedOnStatusChange?.(status);
     });
 
     setRealtimeChannel(clientChannel);
@@ -99,7 +102,7 @@ export function useRealtime({ channel, config, bindings, enabled = true, onStatu
       supabase.removeChannel(clientChannel);
       setRealtimeChannel(null);
     };
-  }, [channel, config, enabled, memoizedBindings, onError, onStatusChange]);
+  }, [channel, enabled, memoizedBindings, memoizedConfig, memoizedOnError, memoizedOnStatusChange]);
 
   return realtimeChannel;
 }
