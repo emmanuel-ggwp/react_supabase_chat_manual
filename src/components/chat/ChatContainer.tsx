@@ -199,7 +199,7 @@ export function ChatContainer({ room, isMember, onJoinRoom, onMarkAsRead, joinEr
         <div
           ref={scrollContainerRef}
           onScroll={handleScroll}
-          className="absolute inset-0 flex flex-col space-y-6 overflow-y-auto px-4 py-6"
+          className="inset-0 flex flex-col space-y-6 overflow-y-auto px-4 py-6"
         >
           {hasMore ? (
             <div className="flex justify-center">
