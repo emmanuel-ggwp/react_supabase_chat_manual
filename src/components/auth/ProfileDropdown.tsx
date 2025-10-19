@@ -664,8 +664,8 @@ export function ProfileDropdown({ onSignInRequest }: ProfileDropdownProps) {
       />
 
       <div
-        className={`fixed inset-x-0 bottom-0 z-50 flex max-h-[90vh] flex-col rounded-t-3xl border border-chat-surface/60 bg-chat-surface/95 shadow-2xl transition-transform duration-300 sm:hidden ${
-          isMobileMenuOpen ? 'translate-y-0' : 'translate-y-full'
+        className={`fixed inset-x-0 bottom-0 z-50 flex max-h-[90vh] flex-col rounded-t-3xl border border-chat-surface/60 bg-chat-surface/95 shadow-2xl transition-transform duration-700 sm:hidden ${
+          isMobileMenuOpen ? 'translate-y-full' : '-translate-y-full'
         }`}
       >
         <div className="flex items-center justify-between px-6 py-4">
