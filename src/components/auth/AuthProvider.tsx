@@ -167,7 +167,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         return { error: error.message };
       }
 
-      if (data.user) {
+      if (data.user && data.session?.user) {
         try {
           await loadProfile(data.user.id, username);
         } catch (profileError) {

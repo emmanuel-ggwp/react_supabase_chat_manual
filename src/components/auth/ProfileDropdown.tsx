@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ChangeEvent, FormEvent } from 'react';
 import {
+  CheckCircle2,
   ChevronDown,
   LifeBuoy,
   Loader2,
@@ -31,7 +32,7 @@ const getIsMobileViewport = () => {
 };
 
 export function ProfileDropdown({ onSignInRequest }: ProfileDropdownProps) {
-  const { status, isAuthenticated, isLoading, profile, user, signIn, signOut } = useAuth();
+  const { status, isAuthenticated, isLoading, profile, user, signIn, signOut, signUp } = useAuth();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [isDesktopMenuOpen, setDesktopMenuOpen] = useState(false);
   const [isMobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -41,14 +42,63 @@ export function ProfileDropdown({ onSignInRequest }: ProfileDropdownProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [confirmingLogout, setConfirmingLogout] = useState(false);
+  const [authView, setAuthView] = useState<'signin' | 'signup'>('signin');
+  const [signUpState, setSignUpState] = useState({ email: '', password: '', username: '' });
+  const [isSignUpSubmitting, setIsSignUpSubmitting] = useState(false);
+  const [signUpError, setSignUpError] = useState<string | null>(null);
+  const [signUpSuccess, setSignUpSuccess] = useState<string | null>(null);
 
   const authLoading = status === 'loading' || isLoading;
 
+  const desktopCloseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearDesktopCloseTimeout = useCallback(() => {
+    if (desktopCloseTimeoutRef.current) {
+      clearTimeout(desktopCloseTimeoutRef.current);
+      desktopCloseTimeoutRef.current = null;
+    }
+  }, []);
+
+  const scheduleDesktopClose = useCallback(() => {
+    if (isMobileViewport) {
+      return;
+    }
+
+    clearDesktopCloseTimeout();
+    desktopCloseTimeoutRef.current = setTimeout(() => {
+      setDesktopMenuOpen(false);
+      setConfirmingLogout(false);
+    }, 180);
+  }, [clearDesktopCloseTimeout, isMobileViewport]);
+
+  const showSignInView = useCallback(() => {
+    setAuthView('signin');
+    setSignUpError(null);
+    setSignUpSuccess(null);
+  }, []);
+
+  const showSignUpView = useCallback(() => {
+    clearDesktopCloseTimeout();
+    setConfirmingLogout(false);
+    setAuthView('signup');
+    setSignUpError(null);
+    setSignUpSuccess(null);
+  }, [clearDesktopCloseTimeout]);
+
   const closeMenus = useCallback(() => {
+    clearDesktopCloseTimeout();
     setDesktopMenuOpen(false);
     setMobileMenuOpen(false);
     setConfirmingLogout(false);
-  }, []);
+    showSignInView();
+    setSignUpState({ email: '', password: '', username: '' });
+  }, [clearDesktopCloseTimeout, showSignInView]);
+
+  useEffect(() => {
+    return () => {
+      clearDesktopCloseTimeout();
+    };
+  }, [clearDesktopCloseTimeout]);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -121,6 +171,13 @@ export function ProfileDropdown({ onSignInRequest }: ProfileDropdownProps) {
     };
   }, [isMobileMenuOpen, closeMenus]);
 
+  useEffect(() => {
+    if (isAuthenticated) {
+      showSignInView();
+      setSignUpState({ email: '', password: '', username: '' });
+    }
+  }, [isAuthenticated, showSignInView]);
+
   
 
   const initials = useMemo(() => {
@@ -137,6 +194,8 @@ export function ProfileDropdown({ onSignInRequest }: ProfileDropdownProps) {
   const secondaryLabel = user?.email ?? profile?.username ?? 'Sin correo disponible';
 
   const handleTriggerOpen = useCallback(() => {
+    clearDesktopCloseTimeout();
+
     if (authLoading) {
       return;
     }
@@ -150,20 +209,20 @@ export function ProfileDropdown({ onSignInRequest }: ProfileDropdownProps) {
     if (!isAuthenticated) {
       onSignInRequest?.();
     }
-  }, [authLoading, isMobileViewport, isAuthenticated, onSignInRequest]);
+  }, [authLoading, clearDesktopCloseTimeout, isMobileViewport, isAuthenticated, onSignInRequest]);
 
   const handleMouseLeave = useCallback(() => {
-    if (isMobileViewport) {
-      return;
-    }
-
-    setDesktopMenuOpen(false);
-    setConfirmingLogout(false);
-  }, [isMobileViewport]);
+    scheduleDesktopClose();
+  }, [scheduleDesktopClose]);
 
   const handleInputChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = event.target;
     setFormState((prev) => ({ ...prev, [name]: value }));
+  }, []);
+
+  const handleSignUpChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = event.target;
+    setSignUpState((prev) => ({ ...prev, [name]: value }));
   }, []);
 
   const handleSignInSubmit = useCallback(
@@ -218,6 +277,41 @@ export function ProfileDropdown({ onSignInRequest }: ProfileDropdownProps) {
     setIsSigningOut(false);
     closeMenus();
   }, [signOut, closeMenus]);
+
+  const handleSignUpSubmit = useCallback(
+    async (event: FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+
+      const email = signUpState.email.trim();
+      const username = signUpState.username.trim();
+      const password = signUpState.password;
+
+      if (!email || !username || !password) {
+        setSignUpError('Completa todos los campos para crear tu cuenta.');
+        return;
+      }
+
+      setIsSignUpSubmitting(true);
+      setSignUpError(null);
+      setSignUpSuccess(null);
+
+      try {
+        const { error } = await signUp({ email, password, username });
+
+        if (error) {
+          setSignUpError(error);
+          return;
+        }
+
+        setSignUpSuccess('Cuenta creada. Revisa tu correo para confirmar y luego inicia sesión.');
+        setSignUpState({ email: '', password: '', username: '' });
+        setFormState((prev) => ({ ...prev, email }));
+      } finally {
+        setIsSignUpSubmitting(false);
+      }
+    },
+    [signUp, signUpState.email, signUpState.password, signUpState.username]
+  );
 
   const renderAvatar = () => {
     if (profile?.avatar_url) {
@@ -325,6 +419,14 @@ export function ProfileDropdown({ onSignInRequest }: ProfileDropdownProps) {
         )}
       </button>
 
+      <button
+        type="button"
+        onClick={showSignUpView}
+        className="w-full text-center text-xs font-semibold text-chat-primary transition hover:text-white"
+      >
+        Crear cuenta
+      </button>
+
       {context === 'mobile' ? (
         <p className="text-center text-xs text-chat-muted">
           Tu sesión se sincroniza en tiempo real con Supabase.
@@ -332,6 +434,114 @@ export function ProfileDropdown({ onSignInRequest }: ProfileDropdownProps) {
       ) : (
         <p className="text-xs text-chat-muted">
           Conéctate para enviar mensajes y recibir notificaciones instantáneas.
+        </p>
+      )}
+    </form>
+  );
+
+  const renderSignUpForm = (context: 'desktop' | 'mobile') => (
+    <form onSubmit={handleSignUpSubmit} className="space-y-4">
+
+      {signUpError ? (
+        <div className="rounded-xl border border-chat-danger/40 bg-chat-danger/10 px-3 py-2 text-xs text-chat-danger">
+          {signUpError}
+        </div>
+      ) : null}
+
+      {signUpSuccess ? (
+        <div className="flex items-start gap-2 rounded-xl border border-emerald-400/40 bg-emerald-400/10 px-3 py-2 text-xs text-emerald-300">
+          <CheckCircle2 size={16} className="mt-0.5" />
+          <span>{signUpSuccess}</span>
+        </div>
+      ) : null}
+
+      <div className="space-y-2 text-xs text-chat-muted">
+        <span className="uppercase tracking-[0.18em]">Nombre de usuario</span>
+        <label className="flex items-center gap-2 rounded-xl border border-chat-surface/60 bg-chat-surface/70 px-3 py-2 transition focus-within:border-chat-primary focus-within:shadow-[0_0_0_2px_rgba(79,209,197,0.2)]">
+          <UserRound size={16} className="text-chat-muted" />
+          <input
+            type="text"
+            name="username"
+            value={signUpState.username}
+            onChange={handleSignUpChange}
+            placeholder="Tu nombre en el chat"
+            className="w-full bg-transparent text-sm text-white placeholder:text-chat-muted focus:outline-none"
+            autoComplete="username"
+            required
+          />
+        </label>
+      </div>
+
+      <div className="space-y-2 text-xs text-chat-muted">
+        <span className="uppercase tracking-[0.18em]">Correo electrónico</span>
+        <label className="flex items-center gap-2 rounded-xl border border-chat-surface/60 bg-chat-surface/70 px-3 py-2 transition focus-within:border-chat-primary focus-within:shadow-[0_0_0_2px_rgba(79,209,197,0.2)]">
+          <Mail size={16} className="text-chat-muted" />
+          <input
+            type="email"
+            name="email"
+            value={signUpState.email}
+            onChange={handleSignUpChange}
+            placeholder="tucorreo@ejemplo.com"
+            className="w-full bg-transparent text-sm text-white placeholder:text-chat-muted focus:outline-none"
+            autoComplete="email"
+            required
+          />
+        </label>
+      </div>
+
+      <div className="space-y-2 text-xs text-chat-muted">
+        <span className="uppercase tracking-[0.18em]">Contraseña</span>
+        <label className="flex items-center gap-2 rounded-xl border border-chat-surface/60 bg-chat-surface/70 px-3 py-2 transition focus-within:border-chat-primary focus-within:shadow-[0_0_0_2px_rgba(79,209,197,0.2)]">
+          <Lock size={16} className="text-chat-muted" />
+          <input
+            type="password"
+            name="password"
+            value={signUpState.password}
+            onChange={handleSignUpChange}
+            placeholder="Mínimo 6 caracteres"
+            className="w-full bg-transparent text-sm text-white placeholder:text-chat-muted focus:outline-none"
+            autoComplete="new-password"
+            minLength={6}
+            required
+          />
+        </label>
+      </div>
+
+      <button
+        type="submit"
+        disabled={
+          isSignUpSubmitting ||
+          !signUpState.email ||
+          !signUpState.password ||
+          !signUpState.username
+        }
+        className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-chat-primary px-5 py-2 text-sm font-semibold text-white transition hover:bg-chat-primary/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-chat-primary/60 disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        {isSignUpSubmitting ? (
+          <>
+            <Loader2 size={16} className="animate-spin" />
+            Creando cuenta…
+          </>
+        ) : (
+          'Crear cuenta'
+        )}
+      </button>
+
+      <button
+        type="button"
+        onClick={showSignInView}
+        className="w-full text-center text-xs font-semibold text-chat-muted transition hover:text-white"
+      >
+        ¿Ya tienes cuenta? Inicia sesión
+      </button>
+
+      {context === 'mobile' ? (
+        <p className="text-center text-xs text-chat-muted">
+          Recibirás un correo para confirmar tu cuenta antes de ingresar al chat.
+        </p>
+      ) : (
+        <p className="text-xs text-chat-muted">
+          Al registrarte podrás participar en salas públicas y recibir notificaciones en tiempo real.
         </p>
       )}
     </form>
@@ -416,8 +626,10 @@ export function ProfileDropdown({ onSignInRequest }: ProfileDropdownProps) {
 
   const renderDesktopMenu = () => (
     <div
-      className={`absolute right-0 z-40 hidden min-w-[20rem] origin-top-right rounded-3xl border border-chat-surface/60 bg-chat-surface/95 p-5 shadow-2xl backdrop-blur transition-all duration-200 sm:block ${
-        isDesktopMenuOpen ? 'pointer-events-auto translate-y-1 opacity-100' : 'pointer-events-none -translate-y-2 opacity-0'
+      onMouseEnter={clearDesktopCloseTimeout}
+      onMouseLeave={scheduleDesktopClose}
+      className={`absolute right-0 top-full z-40 hidden min-w-[20rem] origin-top-right rounded-3xl border border-chat-surface/60 bg-chat-surface/95 p-5 shadow-2xl backdrop-blur transition-all duration-200 sm:block ${
+        isDesktopMenuOpen ? 'pointer-events-auto translate-y-0 opacity-100' : 'pointer-events-none -translate-y-2 opacity-0'
       }`}
     >
       {authLoading ? (
@@ -434,6 +646,8 @@ export function ProfileDropdown({ onSignInRequest }: ProfileDropdownProps) {
         </div>
       ) : isAuthenticated ? (
         renderProfileMenu()
+      ) : authView === 'signup' ? (
+        renderSignUpForm('desktop')
       ) : (
         renderAuthForm('desktop')
       )}
@@ -457,12 +671,14 @@ export function ProfileDropdown({ onSignInRequest }: ProfileDropdownProps) {
         <div className="flex items-center justify-between px-6 py-4">
           <div className="space-y-1">
             <p className="text-sm font-semibold text-white">
-              {isAuthenticated ? 'Mi cuenta' : 'Iniciar sesión'}
+              {isAuthenticated ? 'Mi cuenta' : authView === 'signup' ? 'Crear cuenta' : 'Iniciar sesión'}
             </p>
             <p className="text-xs text-chat-muted">
               {isAuthenticated
                 ? 'Gestiona tus preferencias y presencia en el chat.'
-                : 'Accede para participar en las conversaciones en tiempo real.'}
+                : authView === 'signup'
+                  ? 'Configura tus credenciales para comenzar a chatear en tiempo real.'
+                  : 'Accede para participar en las conversaciones en tiempo real.'}
             </p>
           </div>
           <button
@@ -484,6 +700,8 @@ export function ProfileDropdown({ onSignInRequest }: ProfileDropdownProps) {
             </div>
           ) : isAuthenticated ? (
             renderProfileMenu()
+          ) : authView === 'signup' ? (
+            renderSignUpForm('mobile')
           ) : (
             renderAuthForm('mobile')
           )}
@@ -492,10 +710,12 @@ export function ProfileDropdown({ onSignInRequest }: ProfileDropdownProps) {
     </>
   );
 
+
   return (
     <div
       ref={containerRef}
       className="relative"
+      onMouseEnter={clearDesktopCloseTimeout}
       onMouseLeave={handleMouseLeave}
     >
       {authLoading ? (
@@ -506,6 +726,7 @@ export function ProfileDropdown({ onSignInRequest }: ProfileDropdownProps) {
           onClick={handleTriggerOpen}
           onMouseEnter={() => {
             if (!isMobileViewport) {
+              clearDesktopCloseTimeout();
               setDesktopMenuOpen(true);
             }
           }}
