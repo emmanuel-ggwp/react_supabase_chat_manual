@@ -43,10 +43,11 @@ export const MessageItem = memo(function MessageItem({ message, isOwn, showAvata
     : 'mr-auto rounded-t-2xl rounded-br-2xl bg-chat-surface/90 text-chat-muted';
 
   const containerAlign = isOwn ? 'items-end' : 'items-start';
+  const wrapperAlign = isOwn ? 'ml-auto justify-end' : '';
   const contentAlign = isOwn ? 'text-right' : 'text-left';
 
   return (
-    <div className={`flex ${containerAlign} gap-3 text-sm`}>
+    <div className={`flex ${containerAlign} ${wrapperAlign} gap-3 text-sm`}>
       {!isOwn && showAvatar ? (
         <span className="mt-1 flex h-8 w-8 items-center justify-center rounded-full bg-chat-secondary/30 text-xs font-semibold text-chat-secondary">
           {initials || displayName.charAt(0).toUpperCase()}
@@ -84,8 +85,6 @@ export const MessageItem = memo(function MessageItem({ message, isOwn, showAvata
         <span className="mt-1 flex h-8 w-8 items-center justify-center rounded-full bg-chat-primary/25 text-xs font-semibold text-chat-primary">
           {initials || displayName.charAt(0).toUpperCase()}
         </span>
-      ) : isOwn ? (
-        <span className="h-8 w-8" aria-hidden />
       ) : null}
     </div>
   );
