@@ -3,4 +3,6 @@ export type { AuthStatus, Profile, SignInPayload, SignUpPayload } from './AuthPr
 export { LoginForm } from './LoginForm';
 export { SignUpForm } from './SignUpForm';
 export { ProfileDropdown } from './ProfileDropdown';
+export { LogoutForm } from './LogoutForm';
+export { ProfileMenu } from './ProfileMenu';
 export { withAuthGuard } from './AuthGuard';

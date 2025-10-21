@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { Mail, Lock, Loader2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -11,55 +12,67 @@ const loginSchema = z.object({
     .min(8, 'La contraseña debe tener al menos 8 caracteres.')
 });
 
-type LoginValues = z.infer<typeof loginSchema>;
+export type ProfileAuthFormState = z.infer<typeof loginSchema>;
 
-type LoginFormProps = {
-  onSuccess?: () => void;
+export type LoginFormProps = {
+  context: 'desktop' | 'mobile';
+  onSwitchToSignUp: () => void;
 };
 
-export function LoginForm({ onSuccess }: LoginFormProps) {
+export function LoginForm({
+  context,
+  onSwitchToSignUp
+}: LoginFormProps) {
   const { signIn, resetPassword } = useAuth();
-  const {
-    register,
-    handleSubmit,
-    formState: { errors, isSubmitting },
-    getValues
-  } = useForm<LoginValues>({
-    resolver: zodResolver(loginSchema),
-    defaultValues: {
-      email: '',
-      password: ''
-    }
-  });
+
   const [formError, setFormError] = useState<string | null>(null);
   const [infoMessage, setInfoMessage] = useState<string | null>(null);
 
-  const onSubmit = handleSubmit(async (values: LoginValues) => {
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting, isValid },
+    reset,
+    setValue,
+    getValues
+  } = useForm<ProfileAuthFormState>({
+    resolver: zodResolver(loginSchema),
+    mode: 'onChange',
+    defaultValues: { email: '', password: '' }
+  });
+
+  const onSubmit = handleSubmit(async (values) => {
     setFormError(null);
     setInfoMessage(null);
-    const { error } = await signIn(values);
+
+    const trimmedEmail = values.email.trim();
+    const error = await signIn({ ...values, email: trimmedEmail });
 
     if (error) {
-      setFormError(error);
+      setFormError(error?.error || 'Ocurrió un error al iniciar sesión.');
       return;
     }
 
     setInfoMessage('Sesión iniciada correctamente.');
-    onSuccess?.();
+    reset({ email: trimmedEmail, password: '' });
   });
 
   const handleResetPassword = async () => {
-    const email = getValues('email');
+
+    setFormError(null);
+    setInfoMessage(null);
+
+    const email = getValues('email').trim();
 
     if (!email) {
       setFormError('Ingresa tu correo electrónico para recuperar la contraseña.');
       return;
     }
 
-    const { error } = await resetPassword(email);
+    const error = await resetPassword(email);
 
     if (error) {
-      setFormError(error);
+      setFormError(error.error || 'Ocurrió un error al intentar restablecer la contraseña.');
       return;
     }
 
@@ -67,61 +80,93 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
   };
 
   return (
-    <form onSubmit={onSubmit} className="space-y-6 rounded-xl border border-chat-surface/60 bg-chat-surface/80 p-6 shadow-lg">
-      <header className="space-y-1">
-        <h2 className="text-xl font-semibold text-white">Iniciar sesión</h2>
-        <p className="text-sm text-chat-muted">Accede con tus credenciales para continuar.</p>
-      </header>
-
-      <div className="space-y-1">
-        <label htmlFor="email" className="text-sm font-medium text-slate-200">
-          Correo electrónico
+    <form onSubmit={onSubmit} className="space-y-4">
+      <div className="space-y-2 text-xs text-chat-muted">
+        <span className="uppercase tracking-[0.18em]">Correo electrónico</span>
+        <label className="flex items-center gap-2 rounded-xl border border-chat-surface/60 bg-chat-surface/70 px-3 py-2 transition focus-within:border-chat-primary focus-within:shadow-[0_0_0_2px_rgba(79,209,197,0.2)]">
+          <Mail size={16} className="text-chat-muted" />
+          <input
+            type="email"
+            autoComplete="email"
+            placeholder="tucorreo@ejemplo.com"
+            className="w-full bg-transparent text-sm text-white placeholder:text-chat-muted focus:outline-none"
+            {...register('email')}
+            required
+          />
         </label>
-        <input
-          id="email"
-          type="email"
-          autoComplete="email"
-          className="w-full rounded-lg border border-chat-surface/60 bg-chat-surface/90 px-4 py-2 text-sm text-white placeholder:text-chat-muted focus:border-chat-primary/70 focus:outline-none focus:ring-2 focus:ring-chat-primary/40"
-          placeholder="tucorreo@ejemplo.com"
-          {...register('email')}
-        />
         {errors.email ? <p className="text-xs text-chat-danger">{errors.email.message}</p> : null}
       </div>
 
-      <div className="space-y-1">
-        <label htmlFor="password" className="text-sm font-medium text-slate-200">
-          Contraseña
+      <div className="space-y-2 text-xs text-chat-muted">
+        <span className="uppercase tracking-[0.18em]">Contraseña</span>
+        <label className="flex items-center gap-2 rounded-xl border border-chat-surface/60 bg-chat-surface/70 px-3 py-2 transition focus-within:border-chat-primary focus-within:shadow-[0_0_0_2px_rgba(79,209,197,0.2)]">
+          <Lock size={16} className="text-chat-muted" />
+          <input
+            type="password"
+            autoComplete="current-password"
+            placeholder="••••••••"
+            className="w-full bg-transparent text-sm text-white placeholder:text-chat-muted focus:outline-none"
+            {...register('password')}
+            required
+          />
         </label>
-        <input
-          id="password"
-          type="password"
-          autoComplete="current-password"
-          className="w-full rounded-lg border border-chat-surface/60 bg-chat-surface/90 px-4 py-2 text-sm text-white placeholder:text-chat-muted focus:border-chat-primary/70 focus:outline-none focus:ring-2 focus:ring-chat-primary/40"
-          placeholder="••••••••"
-          {...register('password')}
-        />
         {errors.password ? <p className="text-xs text-chat-danger">{errors.password.message}</p> : null}
       </div>
 
-      {formError ? <p className="rounded-lg bg-chat-danger/20 px-3 py-2 text-sm text-chat-danger">{formError}</p> : null}
-      {infoMessage ? <p className="rounded-lg bg-chat-success/20 px-3 py-2 text-sm text-chat-success">{infoMessage}</p> : null}
+      {formError ? (
+        <div className="rounded-xl border border-chat-danger/40 bg-chat-danger/10 px-3 py-2 text-xs text-chat-danger">
+          {formError}
+        </div>
+      ) : null}
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      {infoMessage ? (
+        <div className="rounded-xl border border-emerald-400/40 bg-emerald-400/10 px-3 py-2 text-xs text-emerald-300">
+          {infoMessage}
+        </div>
+      ) : null}
+
+      <div className="flex flex-col gap-3">
         <button
           type="submit"
-          disabled={isSubmitting}
-          className="inline-flex w-full items-center justify-center rounded-lg bg-chat-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-chat-primary/90 disabled:cursor-not-allowed disabled:bg-chat-primary/60 sm:w-auto"
+          disabled={isSubmitting || !isValid}
+          className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-chat-primary px-5 py-2 text-sm font-semibold text-white transition hover:bg-chat-primary/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-chat-primary/60 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {isSubmitting ? 'Ingresando…' : 'Ingresar'}
+          {isSubmitting ? (
+            <>
+              <Loader2 size={16} className="animate-spin" />
+              Ingresando…
+            </>
+          ) : (
+            'Iniciar sesión'
+          )}
         </button>
+
+        <button
+          type="button"
+          onClick={onSwitchToSignUp}
+          className="w-full text-center text-xs font-semibold text-chat-primary transition hover:text-white"
+        >
+          Crear cuenta
+        </button>
+
         <button
           type="button"
           onClick={handleResetPassword}
-          className="text-sm font-medium text-chat-muted transition hover:text-chat-primary"
+          className="text-xs font-semibold text-chat-muted transition hover:text-chat-primary"
         >
           ¿Olvidaste tu contraseña?
         </button>
       </div>
+
+      {context === 'mobile' ? (
+        <p className="text-center text-xs text-chat-muted">
+          Tu sesión se sincroniza en tiempo real con Supabase.
+        </p>
+      ) : (
+        <p className="text-xs text-chat-muted">
+          Conéctate para enviar mensajes y recibir notificaciones instantáneas.
+        </p>
+      )}
     </form>
   );
 }

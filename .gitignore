@@ -40,3 +40,5 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
 # Tailwind
 /tailwind.config.js.timestamp
+
+/test-results/
