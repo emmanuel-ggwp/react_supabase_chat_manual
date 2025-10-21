@@ -23,6 +23,9 @@ function getStatusIcon(status: MessageWithMeta['status']) {
   }
 }
 
+/**
+ * Renderiza un mensaje individual manejando variantes propias/ajenas e indicadores de estado de envío.
+ */
 export const MessageItem = memo(function MessageItem({ message, isOwn, showAvatar, showUsername, onRetry }: MessageItemProps) {
   const displayName = message.profile?.username ?? 'Usuario';
   const initials = useMemo(

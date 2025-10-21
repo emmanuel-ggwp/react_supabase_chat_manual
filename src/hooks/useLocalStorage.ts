@@ -20,6 +20,9 @@ function readValue<T>(key: string, fallback: T): T {
   }
 }
 
+/**
+ * Sincroniza un estado de React con localStorage manteniendo un valor por defecto cuando no existe clave.
+ */
 export function useLocalStorage<T>(key: string | null, defaultValue: T) {
   const [storageKey, setStorageKey] = useState<string | null>(key);
   const [storedValue, setStoredValue] = useState<T>(() => {

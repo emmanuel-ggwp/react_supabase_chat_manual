@@ -23,6 +23,9 @@ const messageSchema = z.object({
 
 type MessageFormValues = z.infer<typeof messageSchema>;
 
+/**
+ * Área de entrada multilinea con validación y controles auxiliares para enviar mensajes del chat.
+ */
 export function MessageInput({ onSend, onTyping, isDisabled = false, placeholder = 'Escribe un mensaje...' }: MessageInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const {

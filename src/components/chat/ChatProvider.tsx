@@ -43,6 +43,9 @@ type ChatProviderProps = {
   children: ReactNode;
 };
 
+/**
+ * Provee el contexto colaborativo del chat: salas, miembros y helpers para sincronizar estado UI con Supabase.
+ */
 export function ChatProvider({ children }: ChatProviderProps) {
   const {
     rooms,

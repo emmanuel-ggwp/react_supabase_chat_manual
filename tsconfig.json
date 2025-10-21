@@ -19,7 +19,7 @@
     "paths": {
       "@/*": ["./src/*"]
     },
-    "types": ["vite/client", "node"]
+    "types": ["vite/client", "node", "jest", "@testing-library/jest-dom"]
   },
-  "include": ["src"]
+  "include": ["src", "tests", "vite.config.ts", "jest.config.cjs", "jest.integration.config.cjs", "jest.setup.js"]
 }

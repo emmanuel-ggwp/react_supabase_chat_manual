@@ -1,0 +1,136 @@
+import '@testing-library/jest-dom';
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import type { RoomWithMeta } from '@/hooks/useRooms';
+import type { ChatContextValue } from '@/components/chat/ChatProvider';
+import type { RoomMember } from '@/types/chat';
+import { createSupabaseStub } from '../mocks/supabaseClient';
+
+const useChatMock = jest.fn();
+
+type SupabaseMock = ReturnType<typeof createSupabaseStub>;
+let supabaseMock: SupabaseMock | undefined;
+
+jest.mock('@/lib/supabase', () => ({
+  __esModule: true,
+  get supabase() {
+    if (!supabaseMock) {
+      supabaseMock = createSupabaseStub();
+    }
+    return supabaseMock;
+  }
+}));
+
+import App from '@/App';
+
+jest.mock('@/hooks/useAuth', () => ({
+  useAuth: () => ({ user: { id: 'user-1', email: 'demo@mail.com' } })
+}));
+
+jest.mock('@/components/chat', () => {
+  const actual = jest.requireActual('@/components/chat');
+  return {
+    ...actual,
+    useChat: () => useChatMock()
+  };
+});
+
+describe('Integración: gestión de salas', () => {
+  beforeEach(() => {
+    supabaseMock = createSupabaseStub();
+  });
+
+  const baseRoom: RoomWithMeta = {
+    id: 'room-1',
+    name: 'Sala general',
+    description: 'Canal de bienvenida',
+    created_by: 'user-1',
+    created_at: new Date().toISOString(),
+    is_public: true,
+    lastMessagePreview: null,
+    lastMessageAt: null,
+    unreadCount: 0,
+    onlineUsers: 12,
+    isMember: false
+  };
+
+  const buildChatState = (overrides: Partial<ChatContextValue> = {}) => ({
+    ...getDefaultChatState(),
+    ...overrides
+  });
+
+  const getDefaultChatState = (): ChatContextValue => {
+    const createRoom = jest.fn(async () => ({}));
+    const joinRoom = jest.fn(async () => ({}));
+    const leaveRoom = jest.fn(async () => ({}));
+    const markAsRead = jest.fn();
+    const setActiveRoomId = jest.fn();
+    const setSearchTerm = jest.fn();
+    const toggleSidebar = jest.fn();
+    const closeSidebar = jest.fn();
+    const toggleMembersVisibility = jest.fn();
+    const closeMembersPanel = jest.fn();
+    const clearSearchTerm = jest.fn();
+    const refresh = jest.fn();
+    const openMembersPanel = jest.fn();
+    const openSidebar = jest.fn();
+
+    return {
+      rooms: [baseRoom],
+      allRooms: [baseRoom],
+      activeRoomId: baseRoom.id,
+      activeRoom: baseRoom,
+      members: [] as RoomMember[],
+      isLoading: false,
+      isMembersLoading: false,
+      error: null,
+      searchTerm: '',
+      debouncedSearchTerm: '',
+      setSearchTerm,
+      setActiveRoomId,
+      clearSearchTerm,
+      createRoom,
+      joinRoom,
+      leaveRoom,
+      markAsRead,
+      isMembersVisible: false,
+      toggleMembersVisibility,
+      openMembersPanel,
+      closeMembersPanel,
+      isSidebarOpen: false,
+      toggleSidebar,
+      openSidebar,
+      closeSidebar,
+      refresh,
+      isOnline: true,
+      totalOnlineUsers: baseRoom.onlineUsers
+    };
+  };
+
+  it('permite unirse a una sala pública y activa la sala seleccionada', async () => {
+    const state = getDefaultChatState();
+    useChatMock.mockReturnValue(state);
+
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole('button', { name: 'Unirme a la sala' }));
+
+    await waitFor(() => {
+      expect(state.joinRoom).toHaveBeenCalledWith('room-1');
+      expect(state.setActiveRoomId).toHaveBeenCalledWith('room-1');
+    });
+  });
+
+  it('muestra el error de salas cuando la carga falla', () => {
+    const errorState = buildChatState({
+      error: 'Fallo al cargar salas',
+      isOnline: true
+    });
+    useChatMock.mockReturnValue(errorState);
+
+    render(<App />);
+
+    expect(screen.getByText('Fallo al cargar salas')).toBeInTheDocument();
+  });
+});

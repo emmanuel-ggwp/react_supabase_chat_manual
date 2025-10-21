@@ -53,6 +53,10 @@ function hydrateMessage(message: MessageRecord): MessageWithMeta {
   };
 }
 
+/**
+ * Centraliza la lógica de lectura y escritura de mensajes para una sala.
+ * Gestiona paginación, estados optimistas, suscripciones en tiempo real y la señalización de usuarios escribiendo.
+ */
 export function useMessages(roomId: string | null): UseMessagesReturn {
   const { user, profile } = useAuth();
 

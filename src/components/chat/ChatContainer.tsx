@@ -14,6 +14,9 @@ type ChatContainerProps = {
   joinError?: string | null;
 };
 
+/**
+ * Orquesta la vista principal del chat combinando historial, banner de estado y formulario de envío.
+ */
 export function ChatContainer({ room, isMember, onJoinRoom, onMarkAsRead, joinError }: ChatContainerProps) {
   const { user } = useAuth();
   const {
@@ -57,12 +60,19 @@ export function ChatContainer({ room, isMember, onJoinRoom, onMarkAsRead, joinEr
   };
 
   useEffect(() => {
-    if (!autoScroll) {
-      return;
-    }
+  if (!autoScroll) return;
 
-    bottomRef.current?.scrollIntoView({ block: 'end' });
-  }, [autoScroll, messages]);
+  requestAnimationFrame(() => {
+    const scrollContainer = scrollContainerRef.current;
+    //TODO: Verificar si esto no hace que falle la funcionalidad de algun modo
+    if (scrollContainer && 'scrollTo' in scrollContainer && typeof scrollContainer.scrollTo === 'function') {
+      scrollContainer.scrollTo({
+        top: scrollContainer.scrollHeight,
+        behavior: 'smooth'
+      });
+    }
+  });
+}, [autoScroll, messages]);
 
   useEffect(() => {
     if (!isMember || !autoScroll) {
@@ -144,7 +154,7 @@ export function ChatContainer({ room, isMember, onJoinRoom, onMarkAsRead, joinEr
       return {
         tone: 'danger' as const,
         message: joinState.error,
-  onClose: () => setJoinState((current: { loading: boolean; error: string | null }) => ({ ...current, error: null }))
+        onClose: () => setJoinState((current: { loading: boolean; error: string | null }) => ({ ...current, error: null }))
       };
     }
 
@@ -178,11 +188,10 @@ export function ChatContainer({ room, isMember, onJoinRoom, onMarkAsRead, joinEr
     <div className="flex h-full flex-col gap-4">
       {statusBanner ? (
         <div
-          className={`flex items-center justify-between rounded-xl border px-4 py-2 text-xs font-medium ${
-            statusBanner.tone === 'danger'
-              ? 'border-chat-danger/60 bg-chat-danger/15 text-chat-danger'
-              : 'border-chat-warning/40 bg-chat-warning/15 text-chat-warning'
-          }`}
+          className={`flex items-center justify-between rounded-xl border px-4 py-2 text-xs font-medium ${statusBanner.tone === 'danger'
+            ? 'border-chat-danger/60 bg-chat-danger/15 text-chat-danger'
+            : 'border-chat-warning/40 bg-chat-warning/15 text-chat-warning'
+            }`}
         >
           <span>{statusBanner.message}</span>
           <button
@@ -227,7 +236,7 @@ export function ChatContainer({ room, isMember, onJoinRoom, onMarkAsRead, joinEr
             />
           )}
 
-          <div ref={bottomRef} />
+          <div ref={bottomRef} style={{ height: 1 }} />
         </div>
       </div>
 
