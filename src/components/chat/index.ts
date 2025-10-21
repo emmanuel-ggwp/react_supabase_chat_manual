@@ -6,4 +6,4 @@ export { ChatContainer } from './ChatContainer';
 export { MessageList } from './MessageList';
 export { MessageItem } from './MessageItem';
 export { MessageInput } from './MessageInput';
-export { ChatProvider, useChat } from './ChatProvider';
+export { ChatProvider, useChat, ChatContext } from './ChatProvider';

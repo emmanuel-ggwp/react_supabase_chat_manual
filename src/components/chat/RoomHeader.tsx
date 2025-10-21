@@ -2,18 +2,20 @@ import { Users, Settings, LogOut } from 'lucide-react';
 import type { RoomWithMeta } from '@/hooks/useRooms';
 import type { Database } from '@/types/database';
 import { formatRelativeTime } from '@/utils';
+import { useChat } from './ChatProvider';
 
 type ProfileRow = Database['public']['Tables']['profiles']['Row'];
 
 type RoomHeaderProps = {
-  room: RoomWithMeta;
   members?: Array<{ user: ProfileRow; role: string }>;
   onLeaveRoom?: (roomId: string) => void;
   onOpenSettings?: (roomId: string) => void;
   onToggleMembers?: () => void;
 };
 
-export function RoomHeader({ room, members = [], onLeaveRoom, onOpenSettings, onToggleMembers }: RoomHeaderProps) {
+export function RoomHeader({ members = [], onLeaveRoom, onOpenSettings, onToggleMembers }: RoomHeaderProps) {
+  const room: RoomWithMeta = useChat().activeRoom!;
+  
   const handleLeave = () => {
     onLeaveRoom?.(room.id);
   };

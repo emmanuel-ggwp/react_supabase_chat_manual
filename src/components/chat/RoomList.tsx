@@ -1,30 +1,30 @@
 import type { ChangeEvent } from 'react';
 import { RoomItem } from './RoomItem';
-import type { RoomWithMeta } from '@/hooks/useRooms';
+import { useChat } from './ChatProvider';
 
 type RoomListProps = {
-  rooms: RoomWithMeta[];
   activeRoomId?: string | null;
-  searchTerm: string;
-  onSearchTermChange: (term: string) => void;
   onSelectRoom: (roomId: string) => void;
   onCreateRoom: () => void;
-  onlineUsers?: number;
   isLoading?: boolean;
 };
 
 export function RoomList({
-  rooms,
   activeRoomId,
-  searchTerm,
-  onSearchTermChange,
   onSelectRoom,
   onCreateRoom,
-  onlineUsers = 0,
   isLoading = false
 }: RoomListProps) {
+
+  const {
+    rooms,
+    searchTerm,
+    setSearchTerm,
+    totalOnlineUsers: onlineUsers
+  } = useChat();
+
   const handleSearchChange = (event: ChangeEvent<HTMLInputElement>) => {
-    onSearchTermChange(event.target.value);
+    setSearchTerm(event.target.value);
   };
 
   return (
@@ -51,7 +51,12 @@ export function RoomList({
               placeholder="Buscar salas"
               className="w-full rounded-lg border border-chat-surface/60 bg-chat-surface/90 px-4 py-2 text-sm text-white placeholder:text-chat-muted focus:border-chat-primary/60 focus:outline-none focus:ring-2 focus:ring-chat-primary/40"
             />
-            <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-chat-muted">⌕</span>
+            {
+              !searchTerm?.length ? (
+                <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-chat-muted">⌕</span>
+              ) : null
+            }
+            
           </div>
         </div>
       </div>

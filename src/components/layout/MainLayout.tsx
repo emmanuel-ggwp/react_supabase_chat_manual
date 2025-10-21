@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { LayoutHeader, type NavigationItem } from './LayoutHeader';
 import { LayoutShell } from './LayoutShell';
@@ -9,45 +9,33 @@ import type { RoomWithMeta } from '@/hooks/useRooms';
 type MainLayoutProps = {
   children: ReactNode;
   navItems: NavigationItem[];
-  rooms: RoomWithMeta[];
   activeRoomId?: string;
   onSelectRoom: (roomId: string) => void;
   onCreateRoom: () => void;
-  onlineUsers?: number;
   onSearchRooms?: (term: string) => void;
   footer?: ReactNode;
   isLoadingRooms?: boolean;
   isSidebarOpen?: boolean;
   onToggleSidebar?: () => void;
   onCloseSidebar?: () => void;
-  searchTerm?: string;
 };
 
 export function MainLayout({
   children,
   navItems,
-  rooms,
   activeRoomId,
   onSelectRoom,
   onCreateRoom,
-  onlineUsers = 0,
-  onSearchRooms,
   footer,
   isLoadingRooms = false,
   isSidebarOpen: controlledSidebarOpen,
   onToggleSidebar,
-  onCloseSidebar,
-  searchTerm: externalSearchTerm = ''
+  onCloseSidebar
 }: MainLayoutProps) {
   const [internalSidebarOpen, setInternalSidebarOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState(externalSearchTerm);
 
   const resolvedSidebarOpen = controlledSidebarOpen ?? internalSidebarOpen;
 
-  const handleSearchChange = (term: string) => {
-    setSearchTerm(term);
-    onSearchRooms?.(term);
-  };
 
   const handleSelectRoom = (roomId: string) => {
     onSelectRoom(roomId);
@@ -76,9 +64,6 @@ export function MainLayout({
     setInternalSidebarOpen(false);
   };
 
-  useEffect(() => {
-    setSearchTerm(externalSearchTerm);
-  }, [externalSearchTerm]);
 
   return (
     <LayoutShell>
@@ -90,23 +75,18 @@ export function MainLayout({
 
       <div className="flex flex-1 overflow-hidden">
         <aside
-          className={`fixed inset-y-0 left-0 z-40 w-72 border-r border-chat-surface/60 bg-chat-surface/95 p-6 transition-transform duration-200 ease-in-out lg:static lg:translate-x-0 lg:bg-chat-surface/70 ${
-            resolvedSidebarOpen ? 'translate-x-0' : '-translate-x-full'
-          }`}
+          className={`fixed inset-y-0 left-0 z-40 w-72 border-r border-chat-surface/60 bg-chat-surface/95 p-6 transition-transform duration-200 ease-in-out lg:static lg:translate-x-0 lg:bg-chat-surface/70 ${resolvedSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+            }`}
         >
           <LayoutSidebar
-            rooms={rooms}
             activeRoomId={activeRoomId}
             onSelectRoom={handleSelectRoom}
             onCreateRoom={onCreateRoom}
-            searchTerm={searchTerm}
-            onSearchTermChange={handleSearchChange}
-            onlineUsers={onlineUsers}
             isLoading={isLoadingRooms}
           />
         </aside>
 
-  {resolvedSidebarOpen ? (
+        {resolvedSidebarOpen ? (
           <button
             type="button"
             aria-label="Cerrar sidebar"

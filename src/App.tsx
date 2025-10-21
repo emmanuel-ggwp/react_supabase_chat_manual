@@ -10,9 +10,8 @@ const navItems = [
 ];
 
 function App() {
+  //TODO: refactorizar para usar eliminar las propiedades innecesarias
   const {
-    rooms,
-    activeRoomId,
     activeRoom,
     members,
     isLoading,
@@ -27,8 +26,6 @@ function App() {
     isMembersVisible,
     toggleMembersVisibility,
     closeMembersPanel,
-    totalOnlineUsers,
-    searchTerm,
     isSidebarOpen,
     toggleSidebar,
     closeSidebar,
@@ -88,8 +85,6 @@ function App() {
     <>
       <MainLayout
         navItems={navItems}
-        rooms={rooms}
-        activeRoomId={activeRoomId ?? undefined}
         onSelectRoom={(roomId) => {
           setActiveRoomId(roomId);
           closeMembersPanel();
@@ -100,10 +95,8 @@ function App() {
           setIsCreateRoomOpen(true);
           setCreateRoomError(null);
         }}
-        onlineUsers={totalOnlineUsers}
         onSearchRooms={setSearchTerm}
         isLoadingRooms={isLoading}
-        searchTerm={searchTerm}
         isSidebarOpen={isSidebarOpen}
         onToggleSidebar={toggleSidebar}
         onCloseSidebar={closeSidebar}
@@ -123,7 +116,6 @@ function App() {
         {activeRoom ? (
           <div className="space-y-6">
             <RoomHeader
-              room={activeRoom}
               members={members}
               onLeaveRoom={activeRoom.isMember ? handleLeaveRoom : undefined}
               onOpenSettings={() => console.info('Abrir configuración de sala', activeRoom.id)}

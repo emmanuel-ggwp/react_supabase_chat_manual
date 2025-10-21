@@ -3,10 +3,9 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { RoomWithMeta } from '@/hooks/useRooms';
 import type { ChatContextValue } from '@/components/chat/ChatProvider';
+import { ChatContext } from '@/components/chat/ChatProvider';
 import type { RoomMember } from '@/types/chat';
 import { createSupabaseStub } from '../mocks/supabaseClient';
-
-const useChatMock = jest.fn();
 
 type SupabaseMock = ReturnType<typeof createSupabaseStub>;
 let supabaseMock: SupabaseMock | undefined;
@@ -26,14 +25,6 @@ import App from '@/App';
 jest.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({ user: { id: 'user-1', email: 'demo@mail.com' } })
 }));
-
-jest.mock('@/components/chat', () => {
-  const actual = jest.requireActual('@/components/chat');
-  return {
-    ...actual,
-    useChat: () => useChatMock()
-  };
-});
 
 describe('Integración: gestión de salas', () => {
   beforeEach(() => {
@@ -107,12 +98,18 @@ describe('Integración: gestión de salas', () => {
     };
   };
 
+  const renderWithChat = (value: ChatContextValue) =>
+    render(
+      <ChatContext.Provider value={value}>
+        <App />
+      </ChatContext.Provider>
+    );
+
   it('permite unirse a una sala pública y activa la sala seleccionada', async () => {
     const state = getDefaultChatState();
-    useChatMock.mockReturnValue(state);
 
     const user = userEvent.setup();
-    render(<App />);
+    renderWithChat(state);
 
     await user.click(screen.getByRole('button', { name: 'Unirme a la sala' }));
 
@@ -127,9 +124,8 @@ describe('Integración: gestión de salas', () => {
       error: 'Fallo al cargar salas',
       isOnline: true
     });
-    useChatMock.mockReturnValue(errorState);
 
-    render(<App />);
+    renderWithChat(errorState);
 
     expect(screen.getByText('Fallo al cargar salas')).toBeInTheDocument();
   });

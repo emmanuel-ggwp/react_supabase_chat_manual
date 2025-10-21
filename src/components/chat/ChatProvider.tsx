@@ -37,7 +37,7 @@ export type ChatContextValue = {
   totalOnlineUsers: number;
 };
 
-const ChatContext = createContext<ChatContextValue | undefined>(undefined);
+export const ChatContext = createContext<ChatContextValue | undefined>(undefined);
 
 type ChatProviderProps = {
   children: ReactNode;
@@ -56,7 +56,7 @@ export function ChatProvider({ children }: ChatProviderProps) {
     isLoading,
     isMembersLoading,
     error,
-    searchTerm,
+    searchTerm: roomsSearchTerm,
     setSearchTerm: baseSetSearchTerm,
     setActiveRoomId: baseSetActiveRoomId,
     createRoom,
@@ -69,9 +69,9 @@ export function ChatProvider({ children }: ChatProviderProps) {
   const [storedActiveRoomId, setStoredActiveRoomId] = useLocalStorage<string | null>('chat.activeRoomId', null);
   const [isMembersVisible, setIsMembersVisible] = useLocalStorage<boolean>('chat.membersVisible', false);
   const [isSidebarOpen, setIsSidebarOpen] = useLocalStorage<boolean>('chat.sidebarOpen', false);
-  const [storedSearchTerm, setStoredSearchTerm, clearStoredSearchTerm] = useLocalStorage<string>('chat.searchTerm', '');
+  const [searchTerm, setSearchTerm, clearStoredSearchTerm] = useLocalStorage<string>('chat.searchTerm', '');
 
-  const debouncedSearchTerm = useDebounce(storedSearchTerm, 250);
+  const debouncedSearchTerm = useDebounce(searchTerm, 250);
   const isOnline = useOnlineStatus();
 
   useEffect(() => {
@@ -81,10 +81,10 @@ export function ChatProvider({ children }: ChatProviderProps) {
   }, [activeRoomId, baseSetActiveRoomId, storedActiveRoomId]);
 
   useEffect(() => {
-    if (debouncedSearchTerm !== searchTerm) {
+    if (debouncedSearchTerm !== roomsSearchTerm) {
       baseSetSearchTerm(debouncedSearchTerm);
     }
-  }, [baseSetSearchTerm, debouncedSearchTerm, searchTerm]);
+  }, [baseSetSearchTerm, debouncedSearchTerm, roomsSearchTerm]);
 
   useEffect(() => {
     if (!activeRoomId && storedActiveRoomId !== null) {
@@ -96,12 +96,6 @@ export function ChatProvider({ children }: ChatProviderProps) {
       setStoredActiveRoomId(activeRoomId);
     }
   }, [activeRoomId, setStoredActiveRoomId, storedActiveRoomId]);
-
-  useEffect(() => {
-    if (searchTerm !== storedSearchTerm) {
-      setStoredSearchTerm(searchTerm);
-    }
-  }, [searchTerm, setStoredSearchTerm, storedSearchTerm]);
 
   useEffect(() => {
     if (members.length === 0 && isMembersVisible) {
@@ -117,18 +111,9 @@ export function ChatProvider({ children }: ChatProviderProps) {
     [baseSetActiveRoomId, setStoredActiveRoomId]
   );
 
-  const handleSetSearchTerm = useCallback(
-    (term: string) => {
-      setStoredSearchTerm(term);
-      baseSetSearchTerm(term);
-    },
-    [baseSetSearchTerm, setStoredSearchTerm]
-  );
-
   const clearSearchTerm = useCallback(() => {
     clearStoredSearchTerm();
-    baseSetSearchTerm('');
-  }, [baseSetSearchTerm, clearStoredSearchTerm]);
+  }, [clearStoredSearchTerm]);
 
   const toggleMembersVisibility = useCallback(() => {
     setIsMembersVisible((current: boolean) => !current);
@@ -171,9 +156,9 @@ export function ChatProvider({ children }: ChatProviderProps) {
       toggleSidebar,
       openSidebar,
       closeSidebar,
-      searchTerm: storedSearchTerm,
+      searchTerm,
       debouncedSearchTerm,
-      setSearchTerm: handleSetSearchTerm,
+      setSearchTerm,
       clearSearchTerm,
       setActiveRoomId: handleSetActiveRoomId,
       createRoom,
@@ -198,7 +183,6 @@ export function ChatProvider({ children }: ChatProviderProps) {
       debouncedSearchTerm,
       error,
       handleSetActiveRoomId,
-      handleSetSearchTerm,
       isLoading,
       isMembersLoading,
       isMembersVisible,
@@ -212,7 +196,8 @@ export function ChatProvider({ children }: ChatProviderProps) {
       openSidebar,
       refresh,
       rooms,
-      storedSearchTerm,
+      searchTerm,
+      setSearchTerm,
       toggleMembersVisibility,
       toggleSidebar,
       totalOnlineUsers

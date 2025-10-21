@@ -1,48 +1,78 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import { fn } from '@storybook/test';
 import { RoomList } from './RoomList';
+import { ChatContext, type ChatContextValue } from './ChatProvider';
 import type { RoomWithMeta } from '@/hooks/useRooms';
 
-const rooms: RoomWithMeta[] = [
-  {
-    id: 'room-1',
-    name: 'General',
-    description: 'Canal principal de announcements',
-    created_by: 'user-1',
-    created_at: new Date().toISOString(),
-    is_public: true,
-    lastMessagePreview: 'Próxima demo el viernes',
-    lastMessageAt: new Date().toISOString(),
-    unreadCount: 3,
-    onlineUsers: 12,
-    isMember: true
-  },
-  {
-    id: 'room-2',
-    name: 'Soporte',
-    description: 'Atención en vivo',
-    created_by: 'user-2',
-    created_at: new Date().toISOString(),
-    is_public: true,
-    lastMessagePreview: 'Ticket #42 resuelto',
-    lastMessageAt: new Date().toISOString(),
-    unreadCount: 0,
-    onlineUsers: 4,
-    isMember: false
-  }
-];
+const baseRoom: RoomWithMeta = {
+  id: 'room-1',
+  name: 'Sala general',
+  description: 'Canal de bienvenida',
+  created_by: 'user-1',
+  created_at: new Date().toISOString(),
+  is_public: true,
+  lastMessagePreview: '¡Bienvenido al chat!',
+  lastMessageAt: new Date().toISOString(),
+  unreadCount: 0,
+  onlineUsers: 8,
+  isMember: true
+};
 
-const meta: Meta<typeof RoomList> = {
+const createChatContextValue = (overrides: Partial<ChatContextValue> = {}): ChatContextValue => ({
+  rooms: [baseRoom],
+  allRooms: [baseRoom],
+  activeRoomId: baseRoom.id,
+  activeRoom: baseRoom,
+  members: [],
+  isMembersVisible: false,
+  toggleMembersVisibility: fn(),
+  openMembersPanel: fn(),
+  closeMembersPanel: fn(),
+  isSidebarOpen: false,
+  toggleSidebar: fn(),
+  openSidebar: fn(),
+  closeSidebar: fn(),
+  searchTerm: '',
+  debouncedSearchTerm: '',
+  setSearchTerm: fn(),
+  clearSearchTerm: fn(),
+  setActiveRoomId: fn(),
+  createRoom: fn(async () => ({})),
+  joinRoom: fn(async () => ({})),
+  leaveRoom: fn(async () => ({})),
+  refresh: fn(async () => {}),
+  markAsRead: fn(),
+  isLoading: false,
+  isMembersLoading: false,
+  error: null,
+  isOnline: true,
+  totalOnlineUsers: baseRoom.onlineUsers,
+  ...overrides
+});
+
+type RoomListStoryMeta = Meta<typeof RoomList> & {
+  parameters: {
+    chat?: Partial<ChatContextValue>;
+  };
+};
+
+const meta: RoomListStoryMeta = {
   title: 'Chat/RoomList',
   component: RoomList,
   args: {
-    rooms,
-    activeRoomId: 'room-1',
-    searchTerm: '',
-    onlineUsers: 16,
-    onSearchTermChange: fn(),
+    activeRoomId: baseRoom.id,
     onSelectRoom: fn(),
     onCreateRoom: fn()
+  },
+  decorators: [
+    (Story, context) => (
+      <ChatContext.Provider value={createChatContextValue(context.parameters.chat)}>
+        <Story />
+      </ChatContext.Provider>
+    )
+  ],
+  parameters: {
+    chat: {}
   }
 };
 
@@ -59,7 +89,13 @@ export const Loading: Story = {
 };
 
 export const Empty: Story = {
-  args: {
-    rooms: []
+  parameters: {
+    chat: {
+      rooms: [],
+      allRooms: [],
+      activeRoomId: null,
+      activeRoom: null,
+      totalOnlineUsers: 0
+    }
   }
 };
