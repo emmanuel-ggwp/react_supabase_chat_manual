@@ -48,9 +48,10 @@ export type UseRoomsReturn = {
 };
 
 export function useRooms(): UseRoomsReturn {
-  const { user } = useAuth();
+  const { user, status: authStatus, profile } = useAuth();
   const [rooms, setRooms] = useState<RoomWithMeta[]>([]);
   const [members, setMembers] = useState<RoomMember[]>([]);
+  const [membersByRoom, setMembersByRoom] = useState<Record<string, RoomMember[]>>({});
   const [activeRoomId, setActiveRoomIdState] = useState<string | null>(null);
   const [searchTerm, setSearchTermState] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -93,69 +94,11 @@ export function useRooms(): UseRoomsReturn {
     );
   }, []);
 
-  const enrichRoom = useCallback(
-    async (room: RoomRow, memberships: Set<string>): Promise<RoomWithMeta> => {
-      const [{ data: lastMessages, error: lastMessageError }, { count: memberCount, error: memberCountError }] =
-        await Promise.all([
-          supabase
-            .from('messages')
-            .select('content, created_at')
-            .eq('room_id', room.id)
-            .order('created_at', { ascending: false })
-            .limit(1),
-          supabase
-            .from('room_members')
-            .select('id', { count: 'exact', head: true })
-            .eq('room_id', room.id)
-        ]);
-
-      if (lastMessageError && lastMessageError.code !== 'PGRST116') {
-        throw lastMessageError;
-      }
-
-      if (memberCountError && memberCountError.code !== 'PGRST116') {
-        throw memberCountError;
-      }
-
-      const lastMessage = (lastMessages ?? [])[0] as Pick<MessageRow, 'content' | 'created_at'> | undefined;
-
-      return {
-        ...room,
-        lastMessagePreview: lastMessage?.content ?? null,
-        lastMessageAt: lastMessage?.created_at ?? null,
-        unreadCount: 0,
-        onlineUsers: memberCount ?? 0,
-        isMember: memberships.has(room.id)
-      };
-    },
-    []
-  );
-
-  const fetchMemberships = useCallback(async (): Promise<Set<string>> => {
-    if (!user) {
-      return new Set<string>();
-    }
-
-    const { data, error: membershipsError } = await supabase
-      .from('room_members')
-      .select('room_id')
-      .eq('user_id', user.id);
-
-    if (membershipsError) {
-      throw membershipsError;
-    }
-
-    const rows = (data ?? []) as Array<{ room_id: string }>;
-    return new Set(rows.map((item) => item.room_id));
-  }, [user]);
-
   const fetchRooms = useCallback(async () => {
     setIsLoading(true);
     setError(null);
 
     try {
-      const memberships = await fetchMemberships();
-
       const { data, error: roomsError } = await supabase
         .from('rooms')
         .select('*')
@@ -166,11 +109,92 @@ export function useRooms(): UseRoomsReturn {
       }
 
       const roomsData = (data ?? []) as RoomRow[];
-      const enriched = await Promise.all(roomsData.map((room) => enrichRoom(room, memberships)));
+      const roomIds = roomsData.map((room) => room.id);
+
+      const lastMessageMap = new Map<string, { content: string; created_at: string }>();
+      const membershipSet = new Set<string>();
+      const nextMembersByRoom: Record<string, RoomMember[]> = {};
+
+      if (roomIds.length > 0) {
+        const [{ data: memberRows, error: membersError }, { data: messageRows, error: messagesError }] = await Promise.all([
+          supabase
+            .from('room_members')
+            .select(
+              'room_id, user_id, role, profiles:profiles ( id, username, avatar_url, created_at, updated_at )'
+            )
+            .in('room_id', roomIds),
+          supabase
+            .from('messages')
+            .select('room_id, content, created_at')
+            .in('room_id', roomIds)
+            .order('created_at', { ascending: false })
+        ]);
+
+        if (membersError) {
+          throw membersError;
+        }
+
+        if (messagesError) {
+          throw messagesError;
+        }
+
+        for (const row of (memberRows ?? []) as Array<{
+          room_id: string;
+          user_id: string;
+          role: RoomMemberRow['role'];
+          profiles: ProfileRow | null;
+        }>) {
+          if (!nextMembersByRoom[row.room_id]) {
+            nextMembersByRoom[row.room_id] = [];
+          }
+
+          if (row.profiles) {
+            nextMembersByRoom[row.room_id].push({
+              role: row.role,
+              user: row.profiles
+            });
+          }
+
+          if (row.user_id === user?.id) {
+            membershipSet.add(row.room_id);
+          }
+        }
+
+        for (const message of (messageRows ?? []) as Array<Pick<MessageRow, 'room_id' | 'content' | 'created_at'>>) {
+          if (!lastMessageMap.has(message.room_id)) {
+            lastMessageMap.set(message.room_id, { content: message.content, created_at: message.created_at });
+          }
+        }
+      }
+
+      for (const id of roomIds) {
+        if (!nextMembersByRoom[id]) {
+          nextMembersByRoom[id] = [];
+        }
+      }
+
+      const enriched = roomsData.map((room) => {
+        const lastMessage = lastMessageMap.get(room.id);
+        const roomMembers = nextMembersByRoom[room.id] ?? [];
+
+        return {
+          ...room,
+          lastMessagePreview: lastMessage?.content ?? null,
+          lastMessageAt: lastMessage?.created_at ?? null,
+          unreadCount: 0,
+          onlineUsers: roomMembers.length,
+          isMember: membershipSet.has(room.id)
+        };
+      });
+
       setRooms(enriched);
 
-      if (!activeRoomId && enriched.length > 0) {
-        setActiveRoomIdState(enriched[0].id);
+  const nextActiveRoomId = activeRoomId ?? (enriched[0]?.id ?? null);
+      setMembersByRoom(nextMembersByRoom);
+      setMembers(nextActiveRoomId ? nextMembersByRoom[nextActiveRoomId] ?? [] : []);
+
+      if (enriched.length > 0) {
+        setActiveRoomIdState((current: string | null) => current ?? enriched[0].id);
       }
     } catch (fetchError) {
       console.error(fetchError);
@@ -179,51 +203,27 @@ export function useRooms(): UseRoomsReturn {
     } finally {
       setIsLoading(false);
     }
-  }, [activeRoomId, enrichRoom, fetchMemberships]);
+  }, [user?.id]);
 
-  const fetchMembers = useCallback(
-    async (roomId: string | null) => {
-      if (!roomId) {
-        setMembers([]);
-        return;
-      }
-
-      setIsMembersLoading(true);
-
-      const { data, error: membersError } = await supabase
-        .from('room_members')
-        .select('role, profiles:profiles ( id, username, avatar_url, created_at, updated_at )')
-        .eq('room_id', roomId)
-        .order('created_at', { ascending: true });
-
-      if (membersError) {
-        console.error(membersError);
-        setMembers([]);
-        setIsMembersLoading(false);
-        return;
-      }
-      const membersData = (data ?? []) as RoomMemberQueryResult[];
-
-      const mapped: RoomMember[] = membersData
-        .filter((member): member is RoomMemberQueryResult & { profiles: ProfileRow } => Boolean(member.profiles))
-        .map((member) => ({
-          role: member.role,
-          user: member.profiles
-        }));
-
-      setMembers(mapped);
-      setIsMembersLoading(false);
-    },
-    []
-  );
+  const isAuthReady = authStatus !== 'loading';
 
   useEffect(() => {
+    if (!isAuthReady) {
+      return;
+    }
     fetchRooms();
-  }, [fetchRooms]);
+  }, [fetchRooms, isAuthReady]);
 
   useEffect(() => {
-    fetchMembers(activeRoomId);
-  }, [activeRoomId, fetchMembers]);
+    if (!activeRoomId) {
+      setMembers([]);
+      setIsMembersLoading(false);
+      return;
+    }
+
+    setMembers(membersByRoom[activeRoomId] ?? []);
+    setIsMembersLoading(false);
+  }, [activeRoomId, membersByRoom]);
 
   useEffect(() => {
     if (activeRoomId) {
@@ -250,11 +250,19 @@ export function useRooms(): UseRoomsReturn {
           ...prev
         ];
       });
+      setMembersByRoom((prev) => {
+        if (prev[room.id]) {
+          return prev;
+        }
+        return { ...prev, [room.id]: [] };
+      });
     },
     [user?.id]
   );
 
   const handleRoomUpdate = useCallback((room: RoomRow) => {
+
+    console.log('Room updated:', room);
     setRooms((prev: RoomWithMeta[]) =>
       prev.map((item: RoomWithMeta) =>
         item.id === room.id
@@ -308,6 +316,7 @@ export function useRooms(): UseRoomsReturn {
         schema: 'public',
         table: 'rooms',
         callback: (payload: RealtimePostgresChangesPayload<Record<string, unknown>>) => {
+          console.log('Room inserted:', payload.new);
           handleRoomInsert(payload.new as RoomRow);
         }
       },
@@ -316,6 +325,7 @@ export function useRooms(): UseRoomsReturn {
         schema: 'public',
         table: 'rooms',
         callback: (payload: RealtimePostgresChangesPayload<Record<string, unknown>>) => {
+          console.log('Room updated (subscription):', payload.new);
           handleRoomUpdate(payload.new as RoomRow);
         }
       },
@@ -324,6 +334,7 @@ export function useRooms(): UseRoomsReturn {
         schema: 'public',
         table: 'rooms',
         callback: (payload: RealtimePostgresChangesPayload<Record<string, unknown>>) => {
+          console.log('Room deleted:', payload.old);
           handleRoomDelete((payload.old as RoomRow).id);
         }
       },
@@ -375,16 +386,22 @@ export function useRooms(): UseRoomsReturn {
         return { error: 'No se pudo crear la sala.' };
       }
 
-      const memberships = await fetchMemberships();
-      memberships.add(room.id);
+      const enriched: RoomWithMeta = {
+        ...room,
+        lastMessagePreview: null,
+        lastMessageAt: null,
+        unreadCount: 0,
+        onlineUsers: 1,
+        isMember: true
+      };
 
-      const enriched = await enrichRoom(room, memberships);
       setRooms((prev: RoomWithMeta[]) => [enriched, ...prev]);
+      console.log('Created room:', enriched);
       setActiveRoomIdState(enriched.id);
 
       return { room: enriched };
     },
-    [enrichRoom, fetchMemberships, user]
+    [user]
   );
 
   const joinRoom = useCallback(
@@ -461,10 +478,7 @@ export function useRooms(): UseRoomsReturn {
 
   const refresh = useCallback(async () => {
     await fetchRooms();
-    if (activeRoomId) {
-      await fetchMembers(activeRoomId);
-    }
-  }, [activeRoomId, fetchMembers, fetchRooms]);
+  }, [fetchRooms]);
 
   return {
     rooms: filteredRooms,

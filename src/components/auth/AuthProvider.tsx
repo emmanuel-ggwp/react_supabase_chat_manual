@@ -1,4 +1,4 @@
-import { createContext, useCallback, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { AuthChangeEvent, Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
@@ -46,9 +46,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
+  const lastSessionTokenRef = useRef<string | null>(null);
+  const hasProcessedSessionRef = useRef(false);
 
   const loadProfile = useCallback(
     async (userId: string, fallbackUsername?: string): Promise<Profile> => {
+      console.log('Loading profile for user:', userId);
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -98,6 +101,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
 
       try {
+        console.log('handleSessionChange for user:', currentUser.id);
         setStatus('loading');
         const nextProfile = await loadProfile(currentUser.id, currentUser.user_metadata?.username);
         setProfile(nextProfile);
@@ -111,6 +115,30 @@ export function AuthProvider({ children }: AuthProviderProps) {
     [loadProfile]
   );
 
+  const processSessionChange = useCallback(
+    async (session: Session | null, event?: AuthChangeEvent) => {
+      const nextToken = session?.access_token ?? null;
+      const previousToken = lastSessionTokenRef.current;
+      const tokenChanged = nextToken !== previousToken;
+      const isSignOut = !nextToken && previousToken !== null;
+      const shouldProcess = !hasProcessedSessionRef.current || tokenChanged || isSignOut;
+
+      if (!shouldProcess) {
+        if (event === 'INITIAL_SESSION' && !hasProcessedSessionRef.current) {
+          hasProcessedSessionRef.current = true;
+          lastSessionTokenRef.current = nextToken;
+        }
+        return;
+      }
+
+      hasProcessedSessionRef.current = true;
+      lastSessionTokenRef.current = nextToken;
+
+      await handleSessionChange(session);
+    },
+    [handleSessionChange]
+  );
+
   useEffect(() => {
     let isMounted = true;
 
@@ -120,7 +148,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
         if (!isMounted) {
           return;
         }
-        return handleSessionChange(data.session ?? null);
+
+        return processSessionChange(data.session ?? null, 'INITIAL_SESSION');
+      })
+      .catch((error: unknown) => {
+        console.error('Failed to obtain initial session', error);
       })
       .finally(() => {
         if (isMounted) {
@@ -129,8 +161,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
       });
 
     const { data: listener } = supabase.auth.onAuthStateChange(
-      (_event: AuthChangeEvent, session: Session | null) => {
-        handleSessionChange(session).catch((error: unknown) => {
+      (event: AuthChangeEvent, session: Session | null) => {
+        if (!isMounted) {
+          return;
+        }
+
+        processSessionChange(session, event).catch((error: unknown) => {
           console.error('Auth state listener error', error);
         });
       }
@@ -140,7 +176,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       isMounted = false;
       listener.subscription.unsubscribe();
     };
-  }, [handleSessionChange]);
+  }, [processSessionChange]);
 
   const signIn = useCallback(async ({ email, password }: SignInPayload) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
@@ -207,7 +243,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     if (!user) {
       return;
     }
-
+    console.log('Refreshing profile for user:', user.id);
     try {
       const nextProfile = await loadProfile(user.id, user.user_metadata?.username);
       setProfile(nextProfile);

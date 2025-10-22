@@ -6,11 +6,9 @@ import { AuthProvider } from '@/components/auth';
 import { ChatProvider } from '@/components/chat';
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
-  <React.StrictMode>
-    <AuthProvider>
-      <ChatProvider>
-        <App />
-      </ChatProvider>
-    </AuthProvider>
-  </React.StrictMode>
+  <AuthProvider>
+    <ChatProvider>
+      <App />
+    </ChatProvider>
+  </AuthProvider>
 );
