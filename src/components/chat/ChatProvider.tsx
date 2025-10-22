@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { useRooms, type RoomWithMeta, type UseRoomsReturn } from '@/hooks/useRooms';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
@@ -73,10 +73,26 @@ export function ChatProvider({ children }: ChatProviderProps) {
 
   const debouncedSearchTerm = useDebounce(searchTerm, 250);
   const isOnline = useOnlineStatus();
+  const hasRestoredActiveRoomRef = useRef(false);
 
   useEffect(() => {
-    if (storedActiveRoomId && storedActiveRoomId !== activeRoomId) {
+    if (hasRestoredActiveRoomRef.current) {
+      return;
+    }
+
+    if (!storedActiveRoomId) {
+      hasRestoredActiveRoomRef.current = true;
+      return;
+    }
+
+    if (activeRoomId === storedActiveRoomId) {
+      hasRestoredActiveRoomRef.current = true;
+      return;
+    }
+
+    if (!activeRoomId) {
       baseSetActiveRoomId(storedActiveRoomId);
+      hasRestoredActiveRoomRef.current = true;
     }
   }, [activeRoomId, baseSetActiveRoomId, storedActiveRoomId]);
 
