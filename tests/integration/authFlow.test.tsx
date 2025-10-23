@@ -42,6 +42,7 @@ const createSupabaseMock = () => {
       }),
       signInWithPassword: jest.fn(async ({ email }) => {
         const session = {
+          access_token: 'mock-access-token',
           user: {
             id: mockProfile.id,
             email,
@@ -110,12 +111,19 @@ describe('Integración: flujo completo de autenticación', () => {
     const user = userEvent.setup();
     renderConsumer();
 
-    await waitFor(() => expect(screen.getByTestId('status').textContent).toBe('unauthenticated'));
+    await waitFor(() => {
+      console.log('Current status1:', screen.getByTestId('status').textContent);
+      expect(screen.getByTestId('status').textContent).toBe('unauthenticated')
+    });
     expect(screen.getByTestId('auth').textContent).toBe('guest');
+    console.log('Current status2:', screen.getByTestId('status').textContent);
 
     await user.click(screen.getByRole('button', { name: 'ingresar' }));
 
-    await waitFor(() => expect(screen.getByTestId('status').textContent).toBe('authenticated'));
+    await waitFor(() => {
+      console.log('Current status3:', screen.getByTestId('status').textContent);
+      expect(screen.getByTestId('status').textContent).toBe('authenticated')
+    });
     expect(screen.getByTestId('auth').textContent).toBe('ok');
     expect(screen.getByTestId('email').textContent).toBe(mockProfile.email);
 

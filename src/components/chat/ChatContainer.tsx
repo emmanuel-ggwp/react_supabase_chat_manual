@@ -244,7 +244,7 @@ export function ChatContainer({ room, isMember, onJoinRoom, onMarkAsRead, joinEr
         onSend={handleSendMessage}
         onTyping={notifyTyping}
         isDisabled={isInitialLoading}
-        placeholder={`Enviar mensaje a ${room.name}`}
+        placeholder={`Enviar mensaje a ${room.displayName ?? room.name}`}
       />
     </div>
   );

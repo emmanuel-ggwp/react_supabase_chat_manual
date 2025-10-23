@@ -9,7 +9,8 @@ type RoomItemProps = {
 };
 
 export const RoomItem = memo(function RoomItem({ room, isActive = false, onSelect }: RoomItemProps) {
-  const initials = room.name
+  const displayName = room.displayName ?? room.name;
+  const initials = displayName
     .split(' ')
     .map((part) => part.charAt(0).toUpperCase())
     .slice(0, 2)
@@ -27,11 +28,11 @@ export const RoomItem = memo(function RoomItem({ room, isActive = false, onSelec
     >
       <div className="flex items-center gap-3">
         <span className="flex h-10 w-10 items-center justify-center rounded-full bg-chat-secondary/40 text-sm font-semibold text-chat-secondary">
-          {initials || room.name.charAt(0).toUpperCase()}
+          {initials || displayName.charAt(0).toUpperCase()}
         </span>
         <div className="flex-1">
           <div className="flex items-center justify-between">
-            <p className="text-sm font-semibold text-white">{room.name}</p>
+            <p className="text-sm font-semibold text-white">{displayName}</p>
             <span className="text-[11px] uppercase tracking-wide text-chat-muted/80">
               {room.lastMessageAt ? formatRelativeTime(room.lastMessageAt) : 'Sin actividad'}
             </span>

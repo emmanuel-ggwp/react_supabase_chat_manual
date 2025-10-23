@@ -10,11 +10,14 @@ const room: RoomWithMeta = {
   created_by: 'user-1',
   created_at: new Date().toISOString(),
   is_public: true,
+  is_direct: false,
   lastMessagePreview: 'Actualizamos el forecast de octubre',
   lastMessageAt: new Date().toISOString(),
   unreadCount: 5,
   onlineUsers: 7,
-  isMember: true
+  isMember: true,
+  displayName: 'Ventas LATAM',
+  counterpartId: null
 };
 
 const meta: Meta<typeof RoomItem> = {

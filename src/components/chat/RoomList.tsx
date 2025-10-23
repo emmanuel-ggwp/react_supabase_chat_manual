@@ -1,5 +1,6 @@
-import type { ChangeEvent } from 'react';
+import { useCallback, useState, type ChangeEvent } from 'react';
 import { RoomItem } from './RoomItem';
+import { StartConversationModal } from './StartConversationModal';
 import { useChat } from './ChatProvider';
 
 type RoomListProps = {
@@ -15,7 +16,6 @@ export function RoomList({
   onCreateRoom,
   isLoading = false
 }: RoomListProps) {
-
   const {
     rooms,
     searchTerm,
@@ -26,6 +26,16 @@ export function RoomList({
   const handleSearchChange = (event: ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(event.target.value);
   };
+
+  const [isStartConversationOpen, setIsStartConversationOpen] = useState(false);
+  
+  const handleOpenStartConversation = useCallback(() => {
+    setIsStartConversationOpen(true);
+  }, []);
+
+  const handleCloseStartConversation = useCallback(() => {
+    setIsStartConversationOpen(false);
+  }, []);
 
   return (
     <div className="flex h-full flex-col">
@@ -77,13 +87,28 @@ export function RoomList({
         )}
       </div>
 
-      <button
-        type="button"
-        onClick={onCreateRoom}
-        className="mt-4 inline-flex items-center justify-center rounded-lg border border-dashed border-chat-primary/60 px-4 py-2 text-sm font-semibold text-chat-primary transition hover:border-chat-primary hover:bg-chat-primary/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-chat-primary/60"
-      >
-        Crear nueva sala
-      </button>
+      <div className="mt-4 space-y-2">
+        <button
+          type="button"
+          onClick={handleOpenStartConversation}
+          className="inline-flex w-full items-center justify-center rounded-lg bg-chat-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-chat-primary/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-chat-primary/60"
+        >
+          Iniciar conversación
+        </button>
+
+        <button
+          type="button"
+          onClick={onCreateRoom}
+          className="inline-flex w-full items-center justify-center rounded-lg border border-dashed border-chat-primary/60 px-4 py-2 text-sm font-semibold text-chat-primary transition hover:border-chat-primary hover:bg-chat-primary/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-chat-primary/60"
+        >
+          Crear nueva sala
+        </button>
+      </div>
+
+      <StartConversationModal
+        open={isStartConversationOpen}
+        onClose={handleCloseStartConversation}
+      />
     </div>
   );
 }

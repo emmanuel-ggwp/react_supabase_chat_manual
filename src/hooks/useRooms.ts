@@ -14,6 +14,52 @@ type ProfileRow = Database['public']['Tables']['profiles']['Row'];
 type MessageRow = Database['public']['Tables']['messages']['Row'];
 type RoomMemberQueryResult = Pick<RoomMemberRow, 'role'> & { profiles: ProfileRow | null };
 
+const DIRECT_ROOM_PREFIX = 'direct:' as const;
+
+type DirectRoomMeta = {
+  displayName: string;
+  counterpartId: string | null;
+};
+
+function resolveDirectParticipants(roomName: string): [string, string] | null {
+  if (!roomName.startsWith(DIRECT_ROOM_PREFIX)) {
+    return null;
+  }
+
+  const ids = roomName.slice(DIRECT_ROOM_PREFIX.length).split(':');
+  if (ids.length !== 2 || ids.some((id) => id.trim().length === 0)) {
+    return null;
+  }
+
+  return [ids[0], ids[1]];
+}
+
+function computeRoomDisplay(room: RoomRow, members: RoomMember[], currentUserId?: string | null): DirectRoomMeta {
+  if (!room.is_direct) {
+    return {
+      displayName: room.name,
+      counterpartId: null
+    };
+  }
+
+  console.log('Computing display for direct room:', room, members, currentUserId);
+  const counterpart = members.find((member) => member.user.id !== currentUserId);
+  if (counterpart) {
+    return {
+      displayName: counterpart.user.username ?? 'Conversación',
+      counterpartId: counterpart.user.id
+    };
+  }
+
+  const participants = resolveDirectParticipants(room.name);
+  const counterpartId = participants?.find((id) => id !== currentUserId) ?? null;
+
+  return {
+    displayName: 'Conversación',
+    counterpartId
+  };
+}
+
 type CreateRoomPayload = {
   name: string;
   description?: string | null;
@@ -26,6 +72,8 @@ export type RoomWithMeta = RoomRow & {
   unreadCount: number;
   onlineUsers: number;
   isMember: boolean;
+  displayName: string;
+  counterpartId: string | null;
 };
 
 export type UseRoomsReturn = {
@@ -43,6 +91,7 @@ export type UseRoomsReturn = {
   createRoom: (payload: CreateRoomPayload) => Promise<{ room?: RoomWithMeta; error?: string }>;
   joinRoom: (roomId: string) => Promise<{ error?: string }>;
   leaveRoom: (roomId: string) => Promise<{ error?: string }>;
+  startConversation: (profile: ProfileRow) => Promise<{ room?: RoomWithMeta; error?: string }>;
   refresh: () => Promise<void>;
   markAsRead: (roomId: string) => void;
 };
@@ -70,7 +119,9 @@ export function useRooms(): UseRoomsReturn {
     }
 
     return rooms.filter((room: RoomWithMeta) =>
-      [room.name, room.description ?? ''].some((value) => value.toLowerCase().includes(term))
+      [room.displayName, room.name, room.description ?? '']
+        .filter((value) => value)
+        .some((value) => value.toLowerCase().includes(term))
     );
   }, [rooms, searchTerm]);
 
@@ -176,6 +227,7 @@ export function useRooms(): UseRoomsReturn {
       const enriched = roomsData.map((room) => {
         const lastMessage = lastMessageMap.get(room.id);
         const roomMembers = nextMembersByRoom[room.id] ?? [];
+        const { displayName, counterpartId } = computeRoomDisplay(room, roomMembers, user?.id);
 
         return {
           ...room,
@@ -183,13 +235,15 @@ export function useRooms(): UseRoomsReturn {
           lastMessageAt: lastMessage?.created_at ?? null,
           unreadCount: 0,
           onlineUsers: roomMembers.length,
-          isMember: membershipSet.has(room.id)
-        };
+          isMember: membershipSet.has(room.id) || room.created_by === user?.id,
+          displayName,
+          counterpartId
+        } satisfies RoomWithMeta;
       });
 
       setRooms(enriched);
 
-  const nextActiveRoomId = activeRoomId ?? (enriched[0]?.id ?? null);
+      const nextActiveRoomId = activeRoomId ?? (enriched[0]?.id ?? null);
       setMembersByRoom(nextMembersByRoom);
       setMembers(nextActiveRoomId ? nextMembersByRoom[nextActiveRoomId] ?? [] : []);
 
@@ -233,52 +287,115 @@ export function useRooms(): UseRoomsReturn {
 
   const handleRoomInsert = useCallback(
     (room: RoomRow) => {
-      setRooms((prev: RoomWithMeta[]) => {
-        if (prev.some((item) => item.id === room.id)) {
-          return prev;
-        }
+      const applyInsert = (resolvedMembers: RoomMember[]) => {
+        const { displayName, counterpartId } = computeRoomDisplay(room, resolvedMembers, user?.id);
+        const enriched: RoomWithMeta = {
+          ...room,
+          lastMessagePreview: null,
+          lastMessageAt: null,
+          unreadCount: 0,
+          onlineUsers: resolvedMembers.length,
+          isMember:
+            resolvedMembers.some((member) => member.user.id === user?.id) || room.created_by === user?.id,
+          displayName,
+          counterpartId
+        };
 
-        return [
-          {
-            ...room,
-            lastMessagePreview: null,
-            lastMessageAt: null,
-            unreadCount: 0,
-            onlineUsers: 0,
-            isMember: room.created_by === user?.id
-          },
-          ...prev
-        ];
-      });
-      setMembersByRoom((prev) => {
-        if (prev[room.id]) {
-          return prev;
-        }
-        return { ...prev, [room.id]: [] };
-      });
+        setMembersByRoom((prev) => {
+          const existingMembers = prev[room.id];
+          if (existingMembers && existingMembers.length >= resolvedMembers.length) {
+            return prev;
+          }
+
+          return {
+            ...prev,
+            [room.id]: resolvedMembers
+          };
+        });
+
+        setRooms((prev: RoomWithMeta[]) => {
+          if (prev.some((item) => item.id === room.id)) {
+            return prev;
+          }
+
+          return [enriched, ...prev];
+        });
+      };
+
+      if (room.is_direct) {
+        void (async () => {
+          const { data: memberRows, error: membersError } = await supabase
+            .from('room_members')
+            .select('role, profiles:profiles ( id, username, avatar_url, created_at, updated_at )')
+            .eq('room_id', room.id);
+
+          if (membersError) {
+            console.error('No se pudieron cargar los miembros de la conversación directa', membersError);
+            applyInsert([]);
+            return;
+          }
+
+          const directMembers = (memberRows ?? [])
+            .map((member) => {
+              if (!member.profiles) {
+                return null;
+              }
+
+              return {
+                role: member.role,
+                user: member.profiles
+              } satisfies RoomMember;
+            })
+            .filter((entry): entry is RoomMember => Boolean(entry));
+
+          applyInsert(directMembers);
+        })();
+
+        return;
+      }
+
+      applyInsert([]);
     },
     [user?.id]
   );
 
-  const handleRoomUpdate = useCallback((room: RoomRow) => {
+  const handleRoomUpdate = useCallback(
+    (room: RoomRow) => {
+      console.log('Room updated:', room);
+      setRooms((prev: RoomWithMeta[]) =>
+        prev.map((item: RoomWithMeta) => {
+          if (item.id !== room.id) {
+            return item;
+          }
 
-    console.log('Room updated:', room);
-    setRooms((prev: RoomWithMeta[]) =>
-      prev.map((item: RoomWithMeta) =>
-        item.id === room.id
-          ? {
-              ...item,
-              ...room
-            }
-          : item
-      )
-    );
-  }, []);
+          const membersForRoom = membersByRoom[room.id] ?? [];
+          const { displayName, counterpartId } = computeRoomDisplay(room, membersForRoom, user?.id);
+
+          return {
+            ...item,
+            ...room,
+            displayName,
+            counterpartId
+          } satisfies RoomWithMeta;
+        })
+      );
+    },
+    [membersByRoom, user?.id]
+  );
 
   const handleRoomDelete = useCallback(
     (roomId: string) => {
       setRooms((prev: RoomWithMeta[]) => prev.filter((room) => room.id !== roomId));
       setMembers([]);
+      setMembersByRoom((prev) => {
+        if (!prev[roomId]) {
+          return prev;
+        }
+
+        const next = { ...prev };
+        delete next[roomId];
+        return next;
+      });
       setActiveRoomIdState((current: string | null) => (current === roomId ? null : current));
     },
     []
@@ -392,10 +509,13 @@ export function useRooms(): UseRoomsReturn {
         lastMessageAt: null,
         unreadCount: 0,
         onlineUsers: 1,
-        isMember: true
+        isMember: true,
+        displayName: room.name,
+        counterpartId: null
       };
 
       setRooms((prev: RoomWithMeta[]) => [enriched, ...prev]);
+      setMembersByRoom((prev) => ({ ...prev, [room.id]: [] }));
       console.log('Created room:', enriched);
       setActiveRoomIdState(enriched.id);
 
@@ -472,6 +592,160 @@ export function useRooms(): UseRoomsReturn {
     [activeRoomId, user]
   );
 
+  const startConversation = useCallback(
+    async (target: ProfileRow) => {
+      if (!user) {
+        return { error: 'Debes iniciar sesión para iniciar una conversación.' };
+      }
+
+      if (!target?.id) {
+        return { error: 'Selecciona un usuario válido.' };
+      }
+
+      if (target.id === user.id) {
+        return { error: 'No puedes iniciar una conversación contigo mismo.' };
+      }
+
+      const sortedParticipantIds = [user.id, target.id].sort((a, b) => a.localeCompare(b));
+      const deterministicName = `${DIRECT_ROOM_PREFIX}${sortedParticipantIds[0]}:${sortedParticipantIds[1]}`;
+
+      const { data: existingRooms, error: lookupError } = await supabase
+        .from('rooms')
+        .select('*')
+        .eq('is_direct', true)
+        .eq('name', deterministicName)
+        .limit(1);
+
+      if (lookupError) {
+        return { error: lookupError.message };
+      }
+
+      let roomRecord = (existingRooms?.[0] as RoomRow | undefined) ?? null;
+
+      if (!roomRecord) {
+        const { data: createdRoom, error: roomError } = await supabase
+          .from('rooms')
+          .insert({
+            name: deterministicName,
+            description: null,
+            is_public: false,
+            is_direct: true,
+            created_by: user.id
+          })
+          .select('*')
+          .single<RoomRow>();
+
+        if (roomError || !createdRoom) {
+          return { error: roomError?.message ?? 'No se pudo crear la conversación.' };
+        }
+
+        roomRecord = createdRoom;
+      }
+
+      const membershipPayload: Array<{ room_id: string; user_id: string; role: RoomMemberRow['role'] }> = [
+        {
+          room_id: roomRecord.id,
+          user_id: user.id,
+          role: roomRecord.created_by === user.id ? 'owner' : 'member'
+        },
+        {
+          room_id: roomRecord.id,
+          user_id: target.id,
+          role: roomRecord.created_by === target.id ? 'owner' : 'member'
+        }
+      ];
+
+      for (const membership of membershipPayload) {
+        const { error: membershipError } = await supabase.from('room_members').insert(membership);
+
+        if (membershipError && membershipError.code !== '23505') {
+          return { error: membershipError.message };
+        }
+      }
+
+      const { data: memberRows, error: membersError } = await supabase
+        .from('room_members')
+        .select('role, profiles:profiles ( id, username, avatar_url, created_at, updated_at )')
+        .eq('room_id', roomRecord.id);
+
+      if (membersError) {
+        return { error: membersError.message };
+      }
+
+      const memberMap = new Map<string, RoomMember>();
+
+      for (const row of memberRows ?? []) {
+        if (!row.profiles) {
+          continue;
+        }
+
+        memberMap.set(row.profiles.id, {
+          role: row.role,
+          user: row.profiles
+        });
+      }
+
+      if (profile && !memberMap.has(profile.id)) {
+        memberMap.set(profile.id, {
+          role: roomRecord.created_by === profile.id ? 'owner' : 'member',
+          user: profile
+        });
+      }
+
+      if (!memberMap.has(target.id)) {
+        memberMap.set(target.id, {
+          role: roomRecord.created_by === target.id ? 'owner' : 'member',
+          user: target
+        });
+      }
+
+      const resolvedMembers = Array.from(memberMap.values());
+      const { displayName, counterpartId } = computeRoomDisplay(roomRecord, resolvedMembers, user.id);
+
+      setMembersByRoom((prev) => ({ ...prev, [roomRecord!.id]: resolvedMembers }));
+
+      const existingRoom = rooms.find((item) => item.id === roomRecord!.id);
+      const enriched: RoomWithMeta = {
+        ...roomRecord,
+        lastMessagePreview: existingRoom?.lastMessagePreview ?? null,
+        lastMessageAt: existingRoom?.lastMessageAt ?? null,
+        unreadCount: existingRoom?.unreadCount ?? 0,
+        onlineUsers: resolvedMembers.length,
+        isMember: true,
+        displayName,
+        counterpartId
+      };
+
+      setRooms((prev) => {
+        const index = prev.findIndex((item) => item.id === enriched.id);
+
+        if (index === -1) {
+          return [enriched, ...prev];
+        }
+
+        const next = [...prev];
+        const current = next[index];
+
+        next[index] = {
+          ...current,
+          ...enriched,
+          lastMessagePreview: current.lastMessagePreview,
+          lastMessageAt: current.lastMessageAt,
+          unreadCount: current.unreadCount
+        } satisfies RoomWithMeta;
+
+        return next;
+      });
+
+      setActiveRoomIdState(roomRecord.id);
+      setMembers(resolvedMembers);
+      setIsMembersLoading(false);
+
+      return { room: enriched };
+    },
+    [profile, rooms, user]
+  );
+
   const setSearchTerm = useCallback((term: string) => {
     setSearchTermState(term);
   }, []);
@@ -495,6 +769,7 @@ export function useRooms(): UseRoomsReturn {
     createRoom,
     joinRoom,
     leaveRoom,
+    startConversation,
     refresh,
     markAsRead
   };

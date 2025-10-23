@@ -15,6 +15,7 @@ type RoomHeaderProps = {
 
 export function RoomHeader({ members = [], onLeaveRoom, onOpenSettings, onToggleMembers }: RoomHeaderProps) {
   const room: RoomWithMeta = useChat().activeRoom!;
+  const displayName = room.displayName ?? room.name;
   
   const handleLeave = () => {
     onLeaveRoom?.(room.id);
@@ -30,11 +31,11 @@ export function RoomHeader({ members = [], onLeaveRoom, onOpenSettings, onToggle
         <div>
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-chat-primary/20 text-lg font-semibold text-chat-primary">
-              {room.name.charAt(0).toUpperCase()}
+              {displayName.charAt(0).toUpperCase()}
             </div>
             <div>
               <p className="text-xs uppercase tracking-[0.25em] text-chat-muted">Sala activa</p>
-              <h2 className="text-2xl font-semibold text-white">{room.name}</h2>
+              <h2 className="text-2xl font-semibold text-white">{displayName}</h2>
             </div>
           </div>
           {room.description ? <p className="mt-3 max-w-2xl text-xs text-chat-muted">{room.description}</p> : null}
@@ -103,9 +104,6 @@ export function RoomHeader({ members = [], onLeaveRoom, onOpenSettings, onToggle
               </span>
             );
           })}
-          {members.length > 0 ? (
-            <span className="text-xs text-chat-muted/80">+{members.length - 6} más</span>
-          ) : null}
         </div>
       ) : null}
     </header>

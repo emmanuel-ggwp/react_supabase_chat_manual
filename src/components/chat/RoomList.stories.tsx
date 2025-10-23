@@ -11,11 +11,14 @@ const baseRoom: RoomWithMeta = {
   created_by: 'user-1',
   created_at: new Date().toISOString(),
   is_public: true,
+  is_direct: false,
   lastMessagePreview: '¡Bienvenido al chat!',
   lastMessageAt: new Date().toISOString(),
   unreadCount: 0,
   onlineUsers: 8,
-  isMember: true
+  isMember: true,
+  displayName: 'Sala general',
+  counterpartId: null
 };
 
 const createChatContextValue = (overrides: Partial<ChatContextValue> = {}): ChatContextValue => ({
@@ -40,6 +43,7 @@ const createChatContextValue = (overrides: Partial<ChatContextValue> = {}): Chat
   createRoom: fn(async () => ({})),
   joinRoom: fn(async () => ({})),
   leaveRoom: fn(async () => ({})),
+  startConversation: fn(async () => ({})),
   refresh: fn(async () => {}),
   markAsRead: fn(),
   isLoading: false,

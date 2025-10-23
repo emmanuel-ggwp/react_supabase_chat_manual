@@ -28,6 +28,7 @@ export type ChatContextValue = {
   createRoom: UseRoomsReturn['createRoom'];
   joinRoom: UseRoomsReturn['joinRoom'];
   leaveRoom: UseRoomsReturn['leaveRoom'];
+  startConversation: UseRoomsReturn['startConversation'];
   refresh: UseRoomsReturn['refresh'];
   markAsRead: UseRoomsReturn['markAsRead'];
   isLoading: boolean;
@@ -62,6 +63,7 @@ export function ChatProvider({ children }: ChatProviderProps) {
     createRoom,
     joinRoom,
     leaveRoom,
+    startConversation,
     refresh,
     markAsRead
   } = useRooms();
@@ -180,6 +182,7 @@ export function ChatProvider({ children }: ChatProviderProps) {
       createRoom,
       joinRoom,
       leaveRoom,
+      startConversation,
       refresh,
       markAsRead,
       isLoading,

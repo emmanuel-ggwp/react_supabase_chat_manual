@@ -1,6 +1,7 @@
 export { RoomItem } from './RoomItem';
 export { RoomList } from './RoomList';
 export { CreateRoomModal } from './CreateRoomModal';
+export { StartConversationModal } from './StartConversationModal';
 export { RoomHeader } from './RoomHeader';
 export { ChatContainer } from './ChatContainer';
 export { MessageList } from './MessageList';
