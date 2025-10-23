@@ -23,6 +23,7 @@ export function ProfileDropdown({ onSignInRequest }: ProfileDropdownProps) {
   const [isDesktopMenuOpen, setDesktopMenuOpen] = useState(false);
   const [isMobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isMobileViewport, setIsMobileViewport] = useState<boolean>(getIsMobileViewport);
+  const [authFormDirty, setAuthFormDirty] = useState(false);
   const [authView, setAuthView] = useState<'signin' | 'signup'>('signin');
 
   const authLoading = status === 'loading' || isLoading;
@@ -37,7 +38,7 @@ export function ProfileDropdown({ onSignInRequest }: ProfileDropdownProps) {
   }, []);
 
   const scheduleDesktopClose = useCallback(() => {
-    if (isMobileViewport) {
+    if (isMobileViewport || authFormDirty) {
       return;
     }
 
@@ -45,23 +46,32 @@ export function ProfileDropdown({ onSignInRequest }: ProfileDropdownProps) {
     desktopCloseTimeoutRef.current = setTimeout(() => {
       setDesktopMenuOpen(false);
     }, 180);
-  }, [clearDesktopCloseTimeout, isMobileViewport]);
+  }, [authFormDirty, clearDesktopCloseTimeout, isMobileViewport]);
 
   const showSignInView = useCallback(() => {
     setAuthView('signin');
+    setAuthFormDirty(false);
   }, []);
 
   const showSignUpView = useCallback(() => {
     clearDesktopCloseTimeout();
     setAuthView('signup');
+    setAuthFormDirty(false);
   }, [clearDesktopCloseTimeout]);
 
-  const closeMenus = useCallback(() => {
-    clearDesktopCloseTimeout();
-    setDesktopMenuOpen(false);
-    setMobileMenuOpen(false);
-    showSignInView();
-  }, [clearDesktopCloseTimeout, showSignInView]);
+  const closeMenus = useCallback(
+    (origin: 'inside' | 'outside' = 'inside') => {
+      if (origin === 'inside' && authFormDirty) {
+        return;
+      }
+
+      clearDesktopCloseTimeout();
+      setDesktopMenuOpen(false);
+      setMobileMenuOpen(false);
+      showSignInView();
+    },
+    [authFormDirty, clearDesktopCloseTimeout, showSignInView]
+  );
 
   useEffect(() => {
     return () => {
@@ -96,14 +106,16 @@ export function ProfileDropdown({ onSignInRequest }: ProfileDropdownProps) {
       }
 
       if (containerRef.current && !containerRef.current.contains(event.target)) {
-        setDesktopMenuOpen(false);
+        closeMenus('outside');
       }
     };
 
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        setDesktopMenuOpen(false);
-        setMobileMenuOpen(false);
+        if (authFormDirty) {
+          return;
+        }
+        closeMenus();
       }
     };
 
@@ -114,7 +126,7 @@ export function ProfileDropdown({ onSignInRequest }: ProfileDropdownProps) {
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('keydown', handleEscape);
     };
-  }, [isDesktopMenuOpen]);
+  }, [authFormDirty, closeMenus, isDesktopMenuOpen]);
 
   useEffect(() => {
     if (!isMobileMenuOpen) {
@@ -123,6 +135,9 @@ export function ProfileDropdown({ onSignInRequest }: ProfileDropdownProps) {
 
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
+        if (authFormDirty) {
+          return;
+        }
         closeMenus();
       }
     };
@@ -135,15 +150,13 @@ export function ProfileDropdown({ onSignInRequest }: ProfileDropdownProps) {
       document.body.style.overflow = previousOverflow;
       document.removeEventListener('keydown', handleEscape);
     };
-  }, [isMobileMenuOpen, closeMenus]);
+  }, [authFormDirty, closeMenus, isMobileMenuOpen]);
 
   useEffect(() => {
     if (isAuthenticated) {
       showSignInView();
     }
   }, [isAuthenticated, showSignInView]);
-
-  
 
   const initials = useMemo(() => {
     const source = profile?.username ?? user?.email ?? 'SC';
@@ -166,21 +179,29 @@ export function ProfileDropdown({ onSignInRequest }: ProfileDropdownProps) {
     }
 
     if (isMobileViewport) {
-      setMobileMenuOpen(true);
+      if (authFormDirty && isMobileMenuOpen) {
+        return;
+      }
+      setMobileMenuOpen((current) => (authFormDirty ? true : !current));
     } else {
-      setDesktopMenuOpen((current) => !current);
+      if (authFormDirty && isDesktopMenuOpen) {
+        return;
+      }
+      setDesktopMenuOpen((current) => (authFormDirty ? true : !current));
     }
 
     if (!isAuthenticated) {
       onSignInRequest?.();
     }
-  }, [authLoading, clearDesktopCloseTimeout, isMobileViewport, isAuthenticated, onSignInRequest]);
+  }, [authFormDirty, authLoading, clearDesktopCloseTimeout, isDesktopMenuOpen, isMobileMenuOpen, isMobileViewport, isAuthenticated, onSignInRequest]);
 
   const handleMouseLeave = useCallback(() => {
+    if (authFormDirty) {
+      clearDesktopCloseTimeout();
+      return;
+    }
     scheduleDesktopClose();
-  }, [scheduleDesktopClose]);
-
-
+  }, [authFormDirty, clearDesktopCloseTimeout, scheduleDesktopClose]);
 
   const handleLogout = useCallback(async () => {
     const { error } = await signOut();
@@ -224,7 +245,7 @@ export function ProfileDropdown({ onSignInRequest }: ProfileDropdownProps) {
   const renderDesktopMenu = () => (
     <div
       onMouseEnter={clearDesktopCloseTimeout}
-      onMouseLeave={scheduleDesktopClose}
+      onMouseLeave={handleMouseLeave}
       className={`absolute right-0 top-full z-40 hidden min-w-[20rem] origin-top-right rounded-3xl border border-chat-surface/60 bg-chat-surface/95 p-5 shadow-2xl backdrop-blur transition-all duration-200 sm:block ${
         isDesktopMenuOpen ? 'pointer-events-auto translate-y-0 opacity-100' : 'pointer-events-none -translate-y-2 opacity-0'
       }`}
@@ -246,18 +267,20 @@ export function ProfileDropdown({ onSignInRequest }: ProfileDropdownProps) {
           avatar={renderAvatar()}
           displayName={displayName}
           secondaryLabel={secondaryLabel}
-          onOptionSelect={closeMenus}
+          onOptionSelect={() => closeMenus()}
           onLogout={handleLogout}
         />
       ) : authView === 'signup' ? (
         <SignUpForm
           context="desktop"
           onSwitchToSignIn={showSignInView}
+          onDirtyChange={setAuthFormDirty}
         />
       ) : (
         <LoginForm
           context="desktop"
           onSwitchToSignUp={showSignUpView}
+          onDirtyChange={setAuthFormDirty}
         />
       )}
     </div>
@@ -269,7 +292,7 @@ export function ProfileDropdown({ onSignInRequest }: ProfileDropdownProps) {
         className={`fixed inset-0 z-40 bg-black/60 transition-opacity duration-200 sm:hidden ${
           isMobileMenuOpen ? 'opacity-100' : 'pointer-events-none opacity-0'
         }`}
-        onClick={closeMenus}
+        onClick={() => closeMenus('outside')}
       />
 
       <div
@@ -292,7 +315,7 @@ export function ProfileDropdown({ onSignInRequest }: ProfileDropdownProps) {
           </div>
           <button
             type="button"
-            onClick={closeMenus}
+            onClick={() => closeMenus()}
             className="flex h-9 w-9 items-center justify-center rounded-full border border-chat-surface/60 text-chat-muted transition hover:text-white"
             aria-label="Cerrar menú"
           >
@@ -312,18 +335,20 @@ export function ProfileDropdown({ onSignInRequest }: ProfileDropdownProps) {
               avatar={renderAvatar()}
               displayName={displayName}
               secondaryLabel={secondaryLabel}
-              onOptionSelect={closeMenus}
+              onOptionSelect={() => closeMenus()}
               onLogout={handleLogout}
             />
           ) : authView === 'signup' ? (
             <SignUpForm
               context="mobile"
               onSwitchToSignIn={showSignInView}
+              onDirtyChange={setAuthFormDirty}
             />
           ) : (
             <LoginForm
               context="mobile"
               onSwitchToSignUp={showSignUpView}
+              onDirtyChange={setAuthFormDirty}
             />
           )}
         </div>

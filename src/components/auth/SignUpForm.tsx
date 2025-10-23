@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -28,9 +28,10 @@ export type SignUpFormProps = {
   context: 'desktop' | 'mobile';
   onSwitchToSignIn: () => void;
   onSuccess?: () => void;
+  onDirtyChange?: (dirty: boolean) => void;
 };
 
-export function SignUpForm({ context, onSwitchToSignIn, onSuccess }: SignUpFormProps) {
+export function SignUpForm({ context, onSwitchToSignIn, onSuccess, onDirtyChange }: SignUpFormProps) {
   const { signUp } = useAuth();
 
 
@@ -40,7 +41,7 @@ export function SignUpForm({ context, onSwitchToSignIn, onSuccess }: SignUpFormP
   const {
     register,
     handleSubmit,
-    formState: { errors, isSubmitting, isValid },
+    formState: { errors, isSubmitting, isValid, isDirty },
     reset
   } = useForm<SignUpFormValues>({
     resolver: zodResolver(profileSignUpSchema),
@@ -84,6 +85,10 @@ export function SignUpForm({ context, onSwitchToSignIn, onSuccess }: SignUpFormP
     reset();
     onSuccess?.();
   });
+
+  useEffect(() => {
+    onDirtyChange?.(isDirty);
+  }, [isDirty, onDirtyChange]);
 
   return (
     <form onSubmit={onSubmit} className="space-y-4">

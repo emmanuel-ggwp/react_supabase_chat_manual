@@ -17,11 +17,13 @@ export type ProfileAuthFormState = z.infer<typeof loginSchema>;
 export type LoginFormProps = {
   context: 'desktop' | 'mobile';
   onSwitchToSignUp: () => void;
+  onDirtyChange?: (dirty: boolean) => void;
 };
 
 export function LoginForm({
   context,
-  onSwitchToSignUp
+  onSwitchToSignUp,
+  onDirtyChange
 }: LoginFormProps) {
   const { signIn, resetPassword } = useAuth();
 
@@ -31,9 +33,8 @@ export function LoginForm({
   const {
     register,
     handleSubmit,
-    formState: { errors, isSubmitting, isValid },
+    formState: { errors, isSubmitting, isValid, isDirty },
     reset,
-    setValue,
     getValues
   } = useForm<ProfileAuthFormState>({
     resolver: zodResolver(loginSchema),
@@ -56,6 +57,10 @@ export function LoginForm({
     setInfoMessage('Sesión iniciada correctamente.');
     reset({ email: trimmedEmail, password: '' });
   });
+
+  useEffect(() => {
+    onDirtyChange?.(isDirty);
+  }, [isDirty, onDirtyChange]);
 
   const handleResetPassword = async () => {
 
