@@ -28,6 +28,7 @@ Crea un archivo `.env` (o utiliza `.env.local`) basado en `.env.example`.
 | --- | --- | --- |
 | `VITE_SUPABASE_URL` | URL del proyecto Supabase | `https://xyzcompany.supabase.co` |
 | `VITE_SUPABASE_ANON_KEY` | Clave anónima pública | `eyJhbGciOi...` |
+| `REACT_APP_URL` | URL base para redirección después de autenticación | `http://localhost:3000` |
 
 ### Recomendaciones por entorno
 

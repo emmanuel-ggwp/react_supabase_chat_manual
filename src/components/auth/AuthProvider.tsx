@@ -188,18 +188,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return {};
   }, []);
 
+  const redirectUrl = process.env.REACT_APP_URL || window.location.origin;
+
   const signUp = useCallback(
     async ({ email, password, username }: SignUpPayload) => {
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          emailRedirectTo: `${redirectUrl}/auth/callback`,
           data: { username }
         }
       });
-      console.log('Sign up attempt for email:', email);
-      console.log('Redirecting to:', `${window.location.origin}/auth/callback`);
 
       if (error) {
         return { error: error.message };
@@ -216,7 +216,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       return {};
     },
-    [loadProfile]
+    [loadProfile, redirectUrl]
   );
 
   const signOut = useCallback(async () => {
@@ -231,7 +231,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const resetPassword = useCallback(async (email: string) => {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/auth/reset-password`
+      redirectTo: `${redirectUrl}/auth/reset-password`
     });
 
     if (error) {
@@ -239,7 +239,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
 
     return {};
-  }, []);
+  }, [redirectUrl]);
 
   const refreshProfile = useCallback(async () => {
     if (!user) {
