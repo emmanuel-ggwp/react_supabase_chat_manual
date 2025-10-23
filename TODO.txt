@@ -31,9 +31,9 @@ Consideraciones Adicionales
 
 
 Correcciones urgentes
-Cuando creo una sala con una ya existente se rompe la UI
-Poder crear una conversacion directamente con una persona (poder ver la lista de usuarios conectados)
-El buscador de salas no funciona
+Cuando creo una conversacion privada no le llega a la contraparte, tengo que recargar
+
+
 
 Detalles menores
 En ocasiones toma un usuario en linea de mas (probablemente por el numero de salas en la que este el usuario)

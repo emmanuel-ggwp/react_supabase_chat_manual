@@ -39,7 +39,7 @@ export function RoomHeader({ members = [], onLeaveRoom, onOpenSettings, onToggle
             </div>
           </div>
           {room.description ? <p className="mt-3 max-w-2xl text-xs text-chat-muted">{room.description}</p> : null}
-          <div className="mt-3 flex flex-wrap items-center gap-4 text-[11px] uppercase tracking-wide text-chat-muted/80">
+          <div className="mt-3 flex flex-wrap items-center gap-4 text-[8px] uppercase tracking-wide text-chat-muted/80">
             <span>{room.onlineUsers} conectados</span>
             <span>
               Última actividad:{' '}
