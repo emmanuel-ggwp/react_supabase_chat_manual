@@ -66,11 +66,14 @@ describe('Integración: envío y recepción de mensajes', () => {
     created_by: 'user-2',
     created_at: new Date().toISOString(),
     is_public: true,
+    is_direct: false,
     lastMessagePreview: 'Hola desde el otro lado',
     lastMessageAt: new Date().toISOString(),
     unreadCount: 0,
     onlineUsers: 5,
-    isMember: true
+    isMember: true,
+    displayName: 'Sala general',
+    counterpartId: null
   };
 
   it('envía mensajes y muestra el historial con estados de escritura', async () => {

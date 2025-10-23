@@ -137,9 +137,9 @@ export function useRooms(): UseRoomsReturn {
       prev.map((room: RoomWithMeta) =>
         room.id === roomId
           ? {
-              ...room,
-              unreadCount: 0
-            }
+            ...room,
+            unreadCount: 0
+          }
           : room
       )
     );
@@ -466,7 +466,7 @@ export function useRooms(): UseRoomsReturn {
     ],
     [handleMessageInsert, handleRoomDelete, handleRoomInsert, handleRoomUpdate]
   );
-  
+
 
   useSupabaseSubscription({
     channel: 'rooms-realtime',
@@ -542,10 +542,10 @@ export function useRooms(): UseRoomsReturn {
         prev.map((room: RoomWithMeta) =>
           room.id === roomId
             ? {
-                ...room,
-                isMember: true,
-                onlineUsers: Math.max(1, room.onlineUsers + (joinError ? 0 : 1))
-              }
+              ...room,
+              isMember: true,
+              onlineUsers: Math.max(1, room.onlineUsers + (joinError ? 0 : 1))
+            }
             : room
         )
       );
@@ -575,10 +575,10 @@ export function useRooms(): UseRoomsReturn {
         prev.map((room: RoomWithMeta) =>
           room.id === roomId
             ? {
-                ...room,
-                isMember: false,
-                onlineUsers: Math.max(0, room.onlineUsers - 1)
-              }
+              ...room,
+              isMember: false,
+              onlineUsers: Math.max(0, room.onlineUsers - 1)
+            }
             : room
         )
       );
@@ -661,6 +661,16 @@ export function useRooms(): UseRoomsReturn {
         if (membershipError && membershipError.code !== '23505') {
           return { error: membershipError.message };
         }
+      }
+
+      //TODO: Actualiza el room para forzar la carga de miembros actualizada
+      const { error: updateError } = await supabase
+        .from('rooms')
+        .update({}) // No actualiza ningún campo, solo fuerza el trigger
+        .eq('id', roomRecord.id);
+
+      if (updateError) {
+        return { error: updateError.message };
       }
 
       const { data: memberRows, error: membersError } = await supabase

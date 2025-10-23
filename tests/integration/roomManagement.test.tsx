@@ -38,11 +38,14 @@ describe('Integración: gestión de salas', () => {
     created_by: 'user-1',
     created_at: new Date().toISOString(),
     is_public: true,
+    is_direct: false,
     lastMessagePreview: null,
     lastMessageAt: null,
     unreadCount: 0,
     onlineUsers: 12,
-    isMember: false
+    isMember: false,
+    displayName: 'Sala general',
+    counterpartId: null
   };
 
   const buildChatState = (overrides: Partial<ChatContextValue> = {}) => ({
@@ -65,6 +68,7 @@ describe('Integración: gestión de salas', () => {
     const refresh = jest.fn();
     const openMembersPanel = jest.fn();
     const openSidebar = jest.fn();
+    const startConversation = jest.fn();
 
     return {
       rooms: [baseRoom],
@@ -83,6 +87,7 @@ describe('Integración: gestión de salas', () => {
       createRoom,
       joinRoom,
       leaveRoom,
+      startConversation,
       markAsRead,
       isMembersVisible: false,
       toggleMembersVisibility,
