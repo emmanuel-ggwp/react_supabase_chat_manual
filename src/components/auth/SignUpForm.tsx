@@ -19,7 +19,7 @@ const profileSignUpSchema = z.object({
     .string({ required_error: 'El nombre de usuario es obligatorio.' })
     .min(3, 'Debe tener al menos 3 caracteres.')
     .max(24, 'Debe tener máximo 24 caracteres.')
-    .regex(/^[a-zA-Z0-9_]+$/, 'Solo letras, números y guiones bajos.')
+    .regex(/^[a-zA-Z0-9ñÑáÁéÉÍíÓóÚú_]+$/, 'Solo letras, números y guiones bajos.')
 });
 
 export type SignUpFormValues = z.infer<typeof profileSignUpSchema>;

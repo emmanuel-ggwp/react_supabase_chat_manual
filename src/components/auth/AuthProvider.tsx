@@ -41,7 +41,10 @@ type AuthProviderProps = {
   children: ReactNode;
 };
 
+const redirectUrl = import.meta.env.VITE_REDIRECT_URL || window.location.origin;
+
 export function AuthProvider({ children }: AuthProviderProps) {
+  console.log('AuthProvider initialized with redirectUrl:', redirectUrl);
   const [status, setStatus] = useState<AuthStatus>('loading');
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -188,10 +191,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return {};
   }, []);
 
-  const redirectUrl = process.env.REACT_APP_URL || window.location.origin;
+  
 
   const signUp = useCallback(
     async ({ email, password, username }: SignUpPayload) => {
+      console.log('AuthProvider SignUp with redirectUrl:', redirectUrl);
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -216,7 +220,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       return {};
     },
-    [loadProfile, redirectUrl]
+    [loadProfile]
   );
 
   const signOut = useCallback(async () => {
@@ -239,7 +243,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
 
     return {};
-  }, [redirectUrl]);
+  }, []);
 
   const refreshProfile = useCallback(async () => {
     if (!user) {
