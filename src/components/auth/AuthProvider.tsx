@@ -198,6 +198,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
           data: { username }
         }
       });
+      console.log('Sign up attempt for email:', email);
+      console.log('Redirecting to:', `${window.location.origin}/auth/callback`);
 
       if (error) {
         return { error: error.message };
