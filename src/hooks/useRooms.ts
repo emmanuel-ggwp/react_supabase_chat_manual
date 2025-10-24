@@ -532,7 +532,20 @@ export function useRooms(): UseRoomsReturn {
         counterpartId: null
       };
 
-      setRooms((prev: RoomWithMeta[]) => [enriched, ...prev]);
+      setRooms((prev: RoomWithMeta[]) => {
+        const existingIndex = prev.findIndex((item: RoomWithMeta) => item.id === enriched.id);
+
+        if (existingIndex !== -1) {
+          const next = [...prev];
+          next[existingIndex] = {
+            ...next[existingIndex],
+            ...enriched
+          } satisfies RoomWithMeta;
+          return next;
+        }
+
+        return [enriched, ...prev];
+      });
       setMembersByRoom((prev) => ({ ...prev, [room.id]: ownerMember }));
       console.log('Created room:', enriched);
       setActiveRoomIdState(enriched.id);
