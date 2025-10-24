@@ -503,6 +503,24 @@ export function useRooms(): UseRoomsReturn {
         return { error: 'No se pudo crear la sala.' };
       }
 
+      const { error: membershipError } = await supabase
+        .from('room_members')
+        .insert({ room_id: room.id, user_id: user.id, role: 'owner' });
+
+      if (membershipError && membershipError.code !== '23505') {
+        console.error('No se pudo registrar al creador como miembro de la sala', membershipError);
+        return { error: membershipError.message };
+      }
+
+      const ownerMember = profile
+        ? [
+            {
+              role: 'owner' as RoomMemberRow['role'],
+              user: profile
+            } satisfies RoomMember
+          ]
+        : [];
+
       const enriched: RoomWithMeta = {
         ...room,
         lastMessagePreview: null,
@@ -515,13 +533,13 @@ export function useRooms(): UseRoomsReturn {
       };
 
       setRooms((prev: RoomWithMeta[]) => [enriched, ...prev]);
-      setMembersByRoom((prev) => ({ ...prev, [room.id]: [] }));
+      setMembersByRoom((prev) => ({ ...prev, [room.id]: ownerMember }));
       console.log('Created room:', enriched);
       setActiveRoomIdState(enriched.id);
 
       return { room: enriched };
     },
-    [user]
+    [profile, user]
   );
 
   const joinRoom = useCallback(
