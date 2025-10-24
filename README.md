@@ -2,6 +2,8 @@
 
 Aplicación de chat en tiempo real construida con React, Vite y Supabase. Este repositorio incluye la configuración completa de pruebas (unitarias, de integración y de extremo a extremo), Storybook para documentar componentes y guías de despliegue.
 
+Se utilizo una estructura de estado global con el provider de React ya que la complejidad del proyecto ameritaba algo más que solo que prop drilling, se crearon una serie de hooks para manejar el contexto y para los permisos se uso las políticas RLS en Supabase con PostgreSQL
+
 ## Requisitos previos
 
 - Node.js ≥ 18
@@ -124,29 +126,14 @@ La configuración vive en `.storybook/` y se apoya en los addons Essentials, A11
 
 - Ejecuta `npm ci` para instalaciones reproducibles.
 - Usa `npm run lint` y `npm run test` en pipelines rápidos.
-- Para E2E, considera paralelizar por proyecto (`--project=Chromium`, etc.) o usar `npx playwright test --shard`.
+- Para E2E `npm run test:e2e`
 
-## Estructura relevante
+## Próximos pasos
 
-```
-src/
-  components/
-  hooks/
-  lib/
-  utils/
-  types/
-tests/
-  unit/
-  integration/
-  e2e/
-.storybook/
-playwright.config.ts
-jest.config.cjs
-jest.integration.config.cjs
-```
+- Usar Zustand en lugar de el react context, es una dependencia adicional pero por lo que he leido maneja mejor un estado global para una aplicación
+- Remover las propiedades de los componentes que son innecesarios Y usar unicamente useChat o useRoom dependiendo del caso
 
-## Próximos pasos sugeridos
+## Bugs
 
-- Añadir historias adicionales para los componentes restantes si se extiende el catálogo.
-- Automatizar la semilla de datos de Supabase mediante scripts SQL.
-- Integrar `npm audit` en CI siguiendo el aviso de vulnerabilidades moderadas.
+- Al crear una conversacion personal a la contraparte no le aparece la conversacion hasta recargar
+- La funcion que mantiene el menuu de iniciar sesion abierto no esta funcionando correctamente en algunos casos (al usar el autocompletado del navegador)
