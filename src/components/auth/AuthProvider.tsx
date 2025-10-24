@@ -200,7 +200,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         email,
         password,
         options: {
-          emailRedirectTo: `${redirectUrl}/auth/callback`,
+          //emailRedirectTo: `${redirectUrl}/auth/callback`,
           data: { username }
         }
       });
@@ -235,7 +235,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const resetPassword = useCallback(async (email: string) => {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${redirectUrl}/auth/reset-password`
+      //redirectTo: `${redirectUrl}/auth/reset-password`
     });
 
     if (error) {
