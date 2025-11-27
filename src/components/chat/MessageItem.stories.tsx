@@ -10,6 +10,7 @@ const baseMessage: MessageWithMeta = {
   message_type: 'text',
   created_at: new Date().toISOString(),
   expires_at: null,
+  is_secret: false,
   profile: {
     id: 'user-1',
     username: 'Ada Lovelace',

@@ -24,6 +24,7 @@ type TypingPayload = {
 export type MessageWithMeta = MessageRow & {
   profile: ProfileRow | null;
   status: 'sending' | 'sent' | 'error';
+  is_read_by_user?: boolean;
 };
 
 type UseMessagesReturn = {
@@ -32,7 +33,7 @@ type UseMessagesReturn = {
   isLoadingMore: boolean;
   hasMore: boolean;
   error: string | null;
-  sendMessage: (content: string, expiresIn?: number) => Promise<{ error?: string }>;
+  sendMessage: (content: string, expiresIn?: number, isSecret?: boolean) => Promise<{ error?: string }>;
   retryMessage: (messageId: string) => Promise<{ error?: string }>;
   loadMore: () => Promise<void>;
   notifyTyping: () => void;
@@ -40,7 +41,7 @@ type UseMessagesReturn = {
   clearError: () => void;
 };
 
-function hydrateMessage(message: MessageRecord): MessageWithMeta {
+function hydrateMessage(message: MessageRecord & { is_read_by_user?: boolean }): MessageWithMeta {
   return {
     id: message.id,
     room_id: message.room_id,
@@ -49,6 +50,8 @@ function hydrateMessage(message: MessageRecord): MessageWithMeta {
     message_type: message.message_type,
     created_at: message.created_at,
     expires_at: message.expires_at,
+    is_secret: message.is_secret ?? false,
+    is_read_by_user: message.is_read_by_user ?? false,
     profile: message.profiles ?? null,
     status: 'sent'
   };
@@ -113,7 +116,7 @@ export function useMessages(roomId: string | null): UseMessagesReturn {
       const limit = params?.limit ?? PAGE_SIZE;
       const query = supabase
         .from('messages')
-        .select('*, profiles:profiles ( id, username, avatar_url )')
+        .select('*, is_read_by_user, profiles:profiles ( id, username, avatar_url )')
         .eq('room_id', roomId)
         .order('created_at', { ascending: false })
         .limit(limit);
@@ -132,7 +135,7 @@ export function useMessages(roomId: string | null): UseMessagesReturn {
         throw fetchError;
       }
 
-      return (data ?? []) as MessageRecord[];
+      return (data ?? []) as unknown as (MessageRecord & { is_read_by_user?: boolean })[];
     },
     [roomId]
   );
@@ -148,7 +151,7 @@ export function useMessages(roomId: string | null): UseMessagesReturn {
     setIsInitialLoading(true);
 
     fetchMessages()
-  .then((fetched: MessageRecord[]) => {
+  .then((fetched) => {
         if (!isMounted) {
           return;
         }
@@ -333,7 +336,7 @@ export function useMessages(roomId: string | null): UseMessagesReturn {
   }, [fetchMessages, isLoadingMore, roomId]);
 
   const sendMessage = useCallback(
-    async (content: string, expiresIn?: number) => {
+    async (content: string, expiresIn?: number, isSecret: boolean = false) => {
       if (!roomId) {
         return { error: 'No hay una sala seleccionada.' };
       }
@@ -356,10 +359,11 @@ export function useMessages(roomId: string | null): UseMessagesReturn {
         id: optimisticId,
         room_id: roomId,
         user_id: user.id,
-        content: trimmed,
+        content: isSecret ? '🔒 Mensaje oculto' : trimmed,
         message_type: 'text',
         created_at: now.toISOString(),
         expires_at: expiresAt,
+        is_secret: isSecret,
         profile: profile ?? null,
         status: 'sending'
       };
@@ -371,9 +375,10 @@ export function useMessages(roomId: string | null): UseMessagesReturn {
         .insert({ 
           room_id: roomId, 
           user_id: user.id, 
-          content: trimmed, 
+          content: isSecret ? '🔒 Mensaje oculto' : trimmed, 
           message_type: 'text',
-          expires_at: expiresAt
+          expires_at: expiresAt,
+          is_secret: isSecret
         })
         .select('*, profiles:profiles ( id, username, avatar_url )')
         .single();
@@ -392,6 +397,19 @@ export function useMessages(roomId: string | null): UseMessagesReturn {
 
         const message = insertError instanceof Error ? insertError.message : 'No se pudo enviar el mensaje.';
         return { error: message };
+      }
+
+      if (isSecret && data) {
+        const { error: secretError } = await supabase
+          .from('message_secrets')
+          .insert({
+            message_id: data.id,
+            secret_content: trimmed
+          });
+
+        if (secretError) {
+          console.error('Error guardando secreto', secretError);
+        }
       }
 
       const hydrated = hydrateMessage(data as MessageRecord);

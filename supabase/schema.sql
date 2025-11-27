@@ -27,7 +27,8 @@ create table if not exists public.messages (
   content text not null,
   message_type text not null default 'text',
   created_at timestamptz not null default timezone('utc', now()),
-  expires_at timestamptz
+  expires_at timestamptz,
+  is_secret boolean default false
 );
 
 create table if not exists public.room_members (
@@ -38,12 +39,38 @@ create table if not exists public.room_members (
   created_at timestamptz not null default timezone('utc', now())
 );
 
+-- 1. Tabla para almacenar el contenido secreto separado de los mensajes públicos
+create table if not exists public.message_secrets (
+    message_id uuid primary key references public.messages (id) on delete cascade,
+    secret_content text not null,
+    created_at timestamptz not null default timezone('utc', now())
+);
+
+-- Tabla para registrar qué usuarios ya revelaron el secreto
+create table if not exists public.secret_views (
+    id uuid primary key default gen_random_uuid(),
+    message_id uuid references public.messages (id) on delete cascade,
+    user_id uuid references public.profiles (id) on delete cascade,
+    viewed_at timestamptz not null default timezone('utc', now()),
+    unique(message_id, user_id) -- Candado: Un usuario solo puede tener un registro por mensaje
+);
+
 create extension if not exists pg_cron;
 
 select cron.schedule(
   'delete-expired-messages',
   '*/10 * * * *',           
   $$ delete from public.messages where expires_at < now() $$
+);
+
+-- Limpiar secretos huérfanos o viejos cada hora
+select cron.schedule(
+  'cleanup-secrets',
+  '0 * * * *', -- Cada hora
+  $$ 
+    delete from public.message_secrets 
+    where created_at < (now() - interval '24 hours') 
+  $$
 );
 
 do $$
@@ -156,6 +183,8 @@ alter table public.profiles enable row level security;
 alter table public.rooms enable row level security;
 alter table public.messages enable row level security;
 alter table public.room_members enable row level security;
+alter table public.message_secrets enable row level security;
+alter table public.secret_views enable row level security;
 
 alter publication supabase_realtime add table public.messages;
 alter table public.messages replica identity full;
@@ -186,6 +215,8 @@ drop policy if exists "Members manage their membership" on public.room_members;
 drop policy if exists "Owners manage room memberships" on public.room_members;
 drop policy if exists "Members can leave rooms" on public.room_members;
 drop policy if exists "Owners can remove memberships" on public.room_members;
+drop policy if exists "No direct select on secrets" on public.message_secrets;
+drop policy if exists "Users can insert secrets" on public.message_secrets;
 
 create policy "Profiles are readable by authenticated users"
   on public.profiles
@@ -353,5 +384,91 @@ create policy "Users can insert their own messages"
         )
     )
   );
+
+-- Política: Nadie puede hacer SELECT directo (se debe usar la función RPC)
+create policy "No direct select on secrets" on public.message_secrets for select
+using (false);
+
+-- Política: Permitir inserción a usuarios autenticados (al enviar el mensaje)
+create policy "Users can insert secrets" on public.message_secrets
+for insert
+with check (auth.uid() = (select user_id from public.messages where id = message_id));
+
+-- Permitir a los usuarios consultar sus propios registros de vista
+drop policy if exists "Users can see their own views" on public.secret_views;
+create policy "Users can see their own views"
+on public.secret_views
+for select
+using (auth.uid() = user_id);
+
+-- Permitir a los remitentes ver los recibos de lectura de sus mensajes
+drop policy if exists "Senders can view receipts" on public.secret_views;
+create policy "Senders can view receipts"
+on public.secret_views
+for select
+using (
+  exists (
+    select 1 from public.messages
+    where messages.id = secret_views.message_id
+    and messages.user_id = auth.uid()
+  )
+);
+
+create or replace function public.read_secret_message(p_message_id uuid)
+returns text
+language plpgsql
+security definer
+as $$
+declare
+  v_secret text;
+begin
+  -- 1. Verificar si el usuario ya vio este mensaje
+  if exists (
+    select 1 from public.secret_views 
+    where message_id = p_message_id 
+    and user_id = auth.uid()
+  ) then
+    return null;
+  end if;
+
+  -- 2. Obtener el contenido secreto
+  select secret_content into v_secret
+  from public.message_secrets
+  where message_id = p_message_id;
+
+  -- 3. Si existe el contenido, registrar la vista y devolverlo
+  if v_secret is not null then
+    insert into public.secret_views (message_id, user_id)
+    values (p_message_id, auth.uid());
+    
+    return v_secret;
+  end if;
+
+  return null;
+end;
+$$;
+
+-- Función para columna computada: determina si el mensaje ya fue "leído"
+-- Para el remitente: true si ALGUIEN lo leyó.
+-- Para el destinatario: true si ÉL MISMO lo leyó.
+create or replace function public.is_read_by_user(message_row public.messages)
+returns boolean
+language sql
+stable
+security definer
+as $$
+  select exists (
+    select 1
+    from public.secret_views sv
+    where sv.message_id = message_row.id
+    and (
+      -- Si soy el remitente, me importa si alguien (el destinatario) lo vio
+      (message_row.user_id = auth.uid())
+      or
+      -- Si soy el destinatario, me importa si YO lo vi
+      (sv.user_id = auth.uid())
+    )
+  );
+$$;
 
 commit;

@@ -18,6 +18,7 @@ export type Database = {
           room_id: string;
           user_id: string;
           expires_at: string | null;
+          is_secret: boolean;
         };
         Insert: {
           content: string;
@@ -27,6 +28,7 @@ export type Database = {
           room_id: string;
           user_id: string;
           expires_at?: string | null;
+          is_secret?: boolean;
         };
         Update: {
           content?: string;
@@ -36,6 +38,7 @@ export type Database = {
           room_id?: string;
           user_id?: string;
           expires_at?: string | null;
+          is_secret?: boolean;
         };
         Relationships: [
           {
@@ -157,9 +160,89 @@ export type Database = {
           }
         ];
       };
+      message_secrets: {
+        Row: {
+          message_id: string;
+          secret_content: string;
+          created_at: string;
+        };
+        Insert: {
+          message_id: string;
+          secret_content: string;
+          created_at?: string;
+        };
+        Update: {
+          message_id?: string;
+          secret_content?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'message_secrets_message_id_fkey';
+            columns: ['message_id'];
+            referencedRelation: 'messages';
+            referencedColumns: ['id'];
+          }
+        ];
+      };
+      secret_views: {
+        Row: {
+          id: string;
+          message_id: string;
+          user_id: string;
+          viewed_at: string;
+        };
+        Insert: {
+          id?: string;
+          message_id: string;
+          user_id: string;
+          viewed_at?: string;
+        };
+        Update: {
+          id?: string;
+          message_id?: string;
+          user_id?: string;
+          viewed_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'secret_views_message_id_fkey';
+            columns: ['message_id'];
+            referencedRelation: 'messages';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'secret_views_user_id_fkey';
+            columns: ['user_id'];
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          }
+        ];
+      };
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      read_secret_message: {
+        Args: {
+          p_message_id: string;
+        };
+        Returns: string | null;
+      };
+      search_rooms_by_name: {
+        Args: {
+          p_name: string;
+        };
+        Returns: {
+          id: string;
+          name: string;
+          description: string | null;
+          is_public: boolean;
+          is_direct: boolean;
+          created_at: string;
+          created_by: string | null;
+        }[];
+      };
+    };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
   };

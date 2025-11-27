@@ -113,6 +113,30 @@ test.beforeAll(async () => {
   await ensureTestData();
 });
 
+test.afterAll(async () => {
+  if (!supabase) return;
+
+  // Re-autenticar para tener permisos de borrado
+  const { data: authData } = await supabase.auth.signInWithPassword({
+    email: TEST_EMAIL,
+    password: TEST_PASSWORD
+  });
+
+  if (!authData.user) return;
+
+  // Borrar la sala de prueba (los mensajes se borran en cascada por la FK)
+  const { error } = await supabase
+    .from('rooms')
+    .delete()
+    .eq('name', TEST_ROOM_NAME);
+
+  if (error) {
+    console.warn('[Autodestrucción E2E] Error al limpiar datos:', error.message);
+  } else {
+    console.log('[Autodestrucción E2E] Sala y mensajes de prueba eliminados.');
+  }
+});
+
 test.describe('Autodestrucción de Mensajes', () => {
   test.beforeEach(async ({ page }, testInfo) => {
     if (skipReason) {
@@ -153,6 +177,7 @@ test.describe('Autodestrucción de Mensajes', () => {
 
     // 2. Activar timer de 10s
     await page.getByTestId('timer-button').click();
+    await expect(page.getByTestId('timer-option-10')).toBeVisible();
     await page.getByTestId('timer-option-10').click();
 
     // 3. Enviar
@@ -169,23 +194,25 @@ test.describe('Autodestrucción de Mensajes', () => {
     await expect(page.getByText(messageContent)).not.toBeVisible();
   });
 
-  test.only('mensaje expirado no debería aparecer al recargar', async ({ page }) => {
+  test('mensaje expirado no debería aparecer al recargar', async ({ page }) => {
+    test.setTimeout(60000);
     const messageContent = `Mensaje recarga ${Date.now()}`;
 
-    // 1. Enviar mensaje con 10s
     await page.getByTestId('message-input').fill(messageContent);
     await page.getByTestId('timer-button').click();
+    await expect(page.getByTestId('timer-option-10')).toBeVisible();
     await page.getByTestId('timer-option-10').click();
     await page.getByTestId('send-button').click();
 
-    // 2. Esperar a que expire
+    await expect(page.getByText(messageContent)).toBeVisible();
+
     await page.waitForTimeout(16000);
     await expect(page.getByText(messageContent)).not.toBeVisible();
 
-    // 3. Recargar página
     await page.reload();
 
-    // 4. Verificar que sigue sin aparecer (filtrado por servidor/inicialización)
+    await page.waitForSelector('[data-testid="message-input"]');
+
     await expect(page.getByText(messageContent)).not.toBeVisible();
   });
 });

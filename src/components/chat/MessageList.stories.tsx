@@ -13,6 +13,7 @@ const messages: MessageWithMeta[] = [
     message_type: 'text',
     created_at: new Date(now.getTime() - 60_000).toISOString(),
     expires_at: null,
+    is_secret: false,
     profile: {
       id: 'user-1',
       username: 'Ada Lovelace',
@@ -30,6 +31,7 @@ const messages: MessageWithMeta[] = [
     message_type: 'text',
     created_at: new Date(now.getTime() - 30_000).toISOString(),
     expires_at: null,
+    is_secret: false,
     profile: {
       id: 'current-user',
       username: 'Tú',

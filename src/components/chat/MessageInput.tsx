@@ -3,10 +3,10 @@ import type { ChangeEventHandler, KeyboardEventHandler } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Paperclip, Send, Smile, Timer, TimerOff } from 'lucide-react';
+import { Paperclip, Send, Smile, Timer, TimerOff, Lock, Eye } from 'lucide-react';
 
 type MessageInputProps = {
-  onSend: (content: string, expiresIn?: number) => Promise<{ error?: string } | void>;
+  onSend: (content: string, expiresIn?: number, isSecret?: boolean) => Promise<{ error?: string } | void>;
   onTyping?: () => void;
   isDisabled?: boolean;
   placeholder?: string;
@@ -38,6 +38,7 @@ export function MessageInput({ onSend, onTyping, isDisabled = false, placeholder
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const [expiration, setExpiration] = useState<number>(0);
   const [showTimerMenu, setShowTimerMenu] = useState(false);
+  const [isSecret, setIsSecret] = useState(false);
 
   const {
     register,
@@ -71,7 +72,7 @@ export function MessageInput({ onSend, onTyping, isDisabled = false, placeholder
   }, [contentValue]);
 
   const submitMessage = handleSubmit(async ({ content }: MessageFormValues) => {
-    const result = await onSend(content, expiration > 0 ? expiration : undefined);
+    const result = await onSend(content, expiration > 0 ? expiration : undefined, isSecret);
 
     if (result && 'error' in result && result.error) {
       setError('content', { message: result.error });
@@ -79,6 +80,7 @@ export function MessageInput({ onSend, onTyping, isDisabled = false, placeholder
     }
 
     reset({ content: '' });
+    setIsSecret(false);
     // Opcional: resetear timer después de enviar
     // setExpiration(0); 
   });
@@ -106,17 +108,32 @@ export function MessageInput({ onSend, onTyping, isDisabled = false, placeholder
               registerRef(element);
             }}
             rows={1}
-            placeholder={placeholder}
+            placeholder={isSecret ? 'Escribe un mensaje secreto...' : placeholder}
             onKeyDown={handleKeyDown}
             onChange={handleChange}
             disabled={isDisabled || isSubmitting}
             data-testid="message-input"
-            className="w-full resize-none rounded-xl border border-transparent bg-chat-surface/70 px-4 py-3 text-sm text-white placeholder:text-chat-muted focus:border-chat-primary/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-chat-primary/40"
+            className={`w-full resize-none rounded-xl border border-transparent bg-chat-surface/70 px-4 py-3 text-sm text-white placeholder:text-chat-muted focus:border-chat-primary/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-chat-primary/40 ${isSecret ? 'text-chat-primary font-medium' : ''}`}
           />
           {errors.content ? <p className="mt-1 text-xs text-chat-danger">{errors.content.message}</p> : null}
         </div>
 
         <div className="flex items-center gap-2 relative">
+          <button
+            type="button"
+            onClick={() => setIsSecret(!isSecret)}
+            disabled={isDisabled || isSubmitting}
+            data-testid="secret-message-button"
+            className={`inline-flex h-10 w-10 items-center justify-center rounded-full border transition-colors ${
+              isSecret 
+                ? 'border-chat-primary text-chat-primary bg-chat-primary/10' 
+                : 'border-chat-surface/60 text-chat-muted/80 hover:text-white'
+            }`}
+            title="Mensaje secreto (Vista única)"
+          >
+            {isSecret ? <Lock size={16} /> : <Eye size={16} />}
+          </button>
+
           <div className="relative">
             <button
               type="button"

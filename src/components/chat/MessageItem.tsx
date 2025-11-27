@@ -2,6 +2,7 @@ import { memo, useMemo } from 'react';
 import { AlertCircle, CheckCheck, Clock } from 'lucide-react';
 import type { MessageWithMeta } from '@/hooks/useMessages';
 import { formatRelativeTime } from '@/utils';
+import { SecretMessageBubble } from './SecretMessageBubble';
 
 type MessageItemProps = {
   message: MessageWithMeta;
@@ -48,6 +49,35 @@ export const MessageItem = memo(function MessageItem({ message, isOwn, showAvata
   const containerAlign = isOwn ? 'items-end' : 'items-start';
   const wrapperAlign = isOwn ? 'ml-auto justify-end' : '';
   const contentAlign = isOwn ? 'text-right' : 'text-left';
+
+  if (message.is_secret) {
+    return (
+      <div className={`flex ${containerAlign} ${wrapperAlign} gap-3 text-sm`}>
+        {!isOwn && showAvatar ? (
+          <span className="mt-1 flex h-8 w-8 items-center justify-center rounded-full bg-chat-secondary/30 text-xs font-semibold text-chat-secondary">
+            {initials || displayName.charAt(0).toUpperCase()}
+          </span>
+        ) : (
+          <span className="h-8 w-8" aria-hidden />
+        )}
+
+        <div className={`max-w-[70%] space-y-1 ${contentAlign}`}>
+          {!isOwn && showUsername ? <p className="text-xs uppercase tracking-wide text-chat-muted/80">{displayName}</p> : null}
+          <SecretMessageBubble messageId={message.id} isSender={isOwn} isRead={message.is_read_by_user ?? false} />
+          <div className="mt-1 flex items-center gap-1 text-[11px] font-medium text-white/70 justify-end">
+            <span>{timestampLabel}</span>
+            {isOwn ? statusIcon : null}
+          </div>
+        </div>
+
+        {isOwn && showAvatar ? (
+          <span className="mt-1 flex h-8 w-8 items-center justify-center rounded-full bg-chat-primary/25 text-xs font-semibold text-chat-primary">
+            {initials || displayName.charAt(0).toUpperCase()}
+          </span>
+        ) : null}
+      </div>
+    );
+  }
 
   return (
     <div className={`flex ${containerAlign} ${wrapperAlign} gap-3 text-sm`}>

@@ -91,8 +91,8 @@ export function ChatContainer({ room, isMember, onJoinRoom, onMarkAsRead, joinEr
   }, [autoScroll, isMember, messages, onMarkAsRead, room.id, user?.id]);
 
   const handleSendMessage = useCallback(
-    async (content: string, expiresIn?: number) => {
-      const result = await sendMessage(content, expiresIn);
+    async (content: string, expiresIn?: number, isSecret?: boolean) => {
+      const result = await sendMessage(content, expiresIn, isSecret);
 
       if (result?.error) {
         setSendError(result.error);

@@ -34,6 +34,7 @@ describe('Integración: envío y recepción de mensajes', () => {
         message_type: 'text',
         created_at: new Date('2024-01-01T10:00:00Z').toISOString(),
         expires_at: null,
+        is_secret: false,
         profile: {
           id: 'user-2',
           username: 'Grace Hopper',
@@ -103,6 +104,6 @@ describe('Integración: envío y recepción de mensajes', () => {
 
     await user.click(screen.getByRole('button', { name: 'Enviar mensaje' }));
 
-    expect(sendMessage).toHaveBeenCalledWith('Hola equipo', undefined);
+    expect(sendMessage).toHaveBeenCalledWith('Hola equipo', undefined, false);
   });
 });

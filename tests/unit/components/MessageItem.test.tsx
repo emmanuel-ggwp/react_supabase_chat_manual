@@ -3,6 +3,17 @@ import { render, screen } from '@testing-library/react';
 import { MessageItem } from '@/components/chat/MessageItem';
 import type { MessageWithMeta } from '@/hooks/useMessages';
 
+jest.mock('@/lib/supabase', () => ({
+  supabase: {
+    from: jest.fn(),
+    rpc: jest.fn()
+  }
+}));
+
+jest.mock('@/hooks/useAuth', () => ({
+  useAuth: jest.fn(() => ({ user: { id: 'user-1' } }))
+}));
+
 describe('MessageItem', () => {
   const baseMessage: MessageWithMeta = {
     id: '1',
@@ -12,6 +23,7 @@ describe('MessageItem', () => {
     message_type: 'text',
     created_at: new Date('2024-01-01T10:00:00Z').toISOString(),
     expires_at: null,
+    is_secret: false,
     profile: {
       id: 'user-1',
       username: 'Ada Lovelace',
