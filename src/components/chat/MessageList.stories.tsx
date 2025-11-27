@@ -12,6 +12,7 @@ const messages: MessageWithMeta[] = [
     content: 'Hola equipo, revisen los cambios en el repositorio.',
     message_type: 'text',
     created_at: new Date(now.getTime() - 60_000).toISOString(),
+    expires_at: null,
     profile: {
       id: 'user-1',
       username: 'Ada Lovelace',
@@ -28,6 +29,7 @@ const messages: MessageWithMeta[] = [
     content: '¡Gracias! Los revisaré antes de la reunión.',
     message_type: 'text',
     created_at: new Date(now.getTime() - 30_000).toISOString(),
+    expires_at: null,
     profile: {
       id: 'current-user',
       username: 'Tú',

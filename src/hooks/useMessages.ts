@@ -32,7 +32,7 @@ type UseMessagesReturn = {
   isLoadingMore: boolean;
   hasMore: boolean;
   error: string | null;
-  sendMessage: (content: string) => Promise<{ error?: string }>;
+  sendMessage: (content: string, expiresIn?: number) => Promise<{ error?: string }>;
   retryMessage: (messageId: string) => Promise<{ error?: string }>;
   loadMore: () => Promise<void>;
   notifyTyping: () => void;
@@ -48,6 +48,7 @@ function hydrateMessage(message: MessageRecord): MessageWithMeta {
     content: message.content,
     message_type: message.message_type,
     created_at: message.created_at,
+    expires_at: message.expires_at,
     profile: message.profiles ?? null,
     status: 'sent'
   };
@@ -71,6 +72,29 @@ export function useMessages(roomId: string | null): UseMessagesReturn {
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastTypingEventRef = useRef<number>(0);
   const typingUserTimeoutsRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setMessages((currentMessages) => {
+        const hasExpiringMessages = currentMessages.some(msg => msg.expires_at);
+        if (!hasExpiringMessages) {
+          return currentMessages;
+        }
+
+        const now = new Date().toISOString();
+        const validMessages = currentMessages.filter(
+          (msg) => !msg.expires_at || msg.expires_at > now
+        );
+        
+        if (validMessages.length !== currentMessages.length) {
+          return validMessages;
+        }
+        return currentMessages;
+      });
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   const resetState = useCallback(() => {
     setMessages([]);
@@ -97,6 +121,10 @@ export function useMessages(roomId: string | null): UseMessagesReturn {
       if (params?.before) {
         query.lt('created_at', params.before);
       }
+
+      // Filtrar expirados también en el cliente por si acaso, aunque RLS lo hace
+      const now = new Date().toISOString();
+      query.or(`expires_at.is.null,expires_at.gt.${now}`);
 
       const { data, error: fetchError } = await query;
 
@@ -305,7 +333,7 @@ export function useMessages(roomId: string | null): UseMessagesReturn {
   }, [fetchMessages, isLoadingMore, roomId]);
 
   const sendMessage = useCallback(
-    async (content: string) => {
+    async (content: string, expiresIn?: number) => {
       if (!roomId) {
         return { error: 'No hay una sala seleccionada.' };
       }
@@ -320,6 +348,9 @@ export function useMessages(roomId: string | null): UseMessagesReturn {
         return { error: 'El mensaje no puede estar vacío.' };
       }
 
+      const now = new Date();
+      const expiresAt = expiresIn ? new Date(now.getTime() + expiresIn * 1000).toISOString() : null;
+
       const optimisticId = `optimistic-${Date.now()}`;
       const optimistic: MessageWithMeta = {
         id: optimisticId,
@@ -327,7 +358,8 @@ export function useMessages(roomId: string | null): UseMessagesReturn {
         user_id: user.id,
         content: trimmed,
         message_type: 'text',
-        created_at: new Date().toISOString(),
+        created_at: now.toISOString(),
+        expires_at: expiresAt,
         profile: profile ?? null,
         status: 'sending'
       };
@@ -336,7 +368,13 @@ export function useMessages(roomId: string | null): UseMessagesReturn {
 
       const { data, error: insertError } = await supabase
         .from('messages')
-        .insert({ room_id: roomId, user_id: user.id, content: trimmed, message_type: 'text' })
+        .insert({ 
+          room_id: roomId, 
+          user_id: user.id, 
+          content: trimmed, 
+          message_type: 'text',
+          expires_at: expiresAt
+        })
         .select('*, profiles:profiles ( id, username, avatar_url )')
         .single();
 

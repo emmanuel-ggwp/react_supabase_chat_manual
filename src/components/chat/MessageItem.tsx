@@ -66,7 +66,7 @@ export const MessageItem = memo(function MessageItem({ message, isOwn, showAvata
           {message.message_type === 'image' ? (
             <span className="text-xs italic text-chat-muted">Contenido de imagen no disponible en esta vista previa.</span>
           ) : (
-            <p className="whitespace-pre-line text-sm leading-relaxed">{message.content}</p>
+            <p className="whitespace-pre-line text-sm leading-relaxed" data-testid="message-content">{message.content}</p>
           )}
           <div className="mt-1 flex items-center gap-1 text-[11px] font-medium text-white/70">
             <span>{timestampLabel}</span>

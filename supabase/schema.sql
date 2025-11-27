@@ -26,7 +26,8 @@ create table if not exists public.messages (
   user_id uuid not null references public.profiles (id) on delete cascade,
   content text not null,
   message_type text not null default 'text',
-  created_at timestamptz not null default timezone('utc', now())
+  created_at timestamptz not null default timezone('utc', now()),
+  expires_at timestamptz
 );
 
 create table if not exists public.room_members (
@@ -35,6 +36,14 @@ create table if not exists public.room_members (
   user_id uuid not null references public.profiles (id) on delete cascade,
   role text not null default 'member' check (role in ('owner', 'moderator', 'member')),
   created_at timestamptz not null default timezone('utc', now())
+);
+
+create extension if not exists pg_cron;
+
+select cron.schedule(
+  'delete-expired-messages',
+  '*/10 * * * *',           
+  $$ delete from public.messages where expires_at < now() $$
 );
 
 do $$
@@ -313,7 +322,8 @@ create policy "Messages readable to room members"
   on public.messages
   for select
   using (
-    exists (
+    (expires_at is null or expires_at > timezone('utc', now()))
+    and exists (
       select 1
       from public.rooms r
       left join public.room_members rm on rm.room_id = r.id and rm.user_id = auth.uid()

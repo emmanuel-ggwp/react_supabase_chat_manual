@@ -5,20 +5,7 @@ import type { RoomWithMeta } from '@/hooks/useRooms';
 import type { ChatContextValue } from '@/components/chat/ChatProvider';
 import { ChatContext } from '@/components/chat/ChatProvider';
 import type { RoomMember } from '@/types/chat';
-import { createSupabaseStub } from '../mocks/supabaseClient';
-
-type SupabaseMock = ReturnType<typeof createSupabaseStub>;
-let supabaseMock: SupabaseMock | undefined;
-
-jest.mock('@/lib/supabase', () => ({
-  __esModule: true,
-  get supabase() {
-    if (!supabaseMock) {
-      supabaseMock = createSupabaseStub();
-    }
-    return supabaseMock;
-  }
-}));
+import { supabase } from '@/lib/supabase';
 
 import App from '@/App';
 
@@ -28,7 +15,7 @@ jest.mock('@/hooks/useAuth', () => ({
 
 describe('Integración: gestión de salas', () => {
   beforeEach(() => {
-    supabaseMock = createSupabaseStub();
+    jest.clearAllMocks();
   });
 
   const baseRoom: RoomWithMeta = {

@@ -96,6 +96,7 @@ export function LoginForm({
             placeholder="tucorreo@ejemplo.com"
             className="w-full bg-transparent text-sm text-white placeholder:text-chat-muted focus:outline-none"
             {...register('email')}
+            data-testid={`login-email-${context}`}
             required
           />
         </label>
@@ -112,6 +113,7 @@ export function LoginForm({
             placeholder="••••••••"
             className="w-full bg-transparent text-sm text-white placeholder:text-chat-muted focus:outline-none"
             {...register('password')}
+            data-testid={`login-password-${context}`}
             required
           />
         </label>
@@ -134,6 +136,7 @@ export function LoginForm({
         <button
           type="submit"
           disabled={isSubmitting || !isValid}
+          data-testid={`login-submit-${context}`}
           className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-chat-primary px-5 py-2 text-sm font-semibold text-white transition hover:bg-chat-primary/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-chat-primary/60 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {isSubmitting ? (

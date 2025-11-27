@@ -1,7 +1,7 @@
 import type { Config } from 'jest';
 
 const config: Config = {
-  preset: 'ts-jest',
+  preset: 'ts-jest/presets/default-esm',
   testEnvironment: 'jsdom',
   
   // Add these root directory configurations
@@ -17,6 +17,7 @@ const config: Config = {
   },
   
   moduleNameMapper: {
+    '^@/config$': '<rootDir>/tests/mocks/config.ts',
     '^@/(.*)$': '<rootDir>/src/$1',
     '^(\\.{1,2}/.*)\\.js$': '$1',
     '\\.(css|less|sass|scss)$': 'identity-obj-proxy'

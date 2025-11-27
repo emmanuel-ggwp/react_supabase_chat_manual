@@ -20,6 +20,7 @@ export const RoomItem = memo(function RoomItem({ room, isActive = false, onSelec
     <button
       type="button"
       onClick={() => onSelect(room.id)}
+      data-testid={`room-item-${room.name}`}
       className={`w-full rounded-xl border px-4 py-3 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-chat-primary/60 ${
         isActive
           ? 'border-chat-primary/60 bg-chat-primary/15 text-white'

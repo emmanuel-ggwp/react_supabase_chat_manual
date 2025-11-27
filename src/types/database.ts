@@ -17,6 +17,7 @@ export type Database = {
           message_type: string;
           room_id: string;
           user_id: string;
+          expires_at: string | null;
         };
         Insert: {
           content: string;
@@ -25,6 +26,7 @@ export type Database = {
           message_type?: string;
           room_id: string;
           user_id: string;
+          expires_at?: string | null;
         };
         Update: {
           content?: string;
@@ -33,6 +35,7 @@ export type Database = {
           message_type?: string;
           room_id?: string;
           user_id?: string;
+          expires_at?: string | null;
         };
         Relationships: [
           {

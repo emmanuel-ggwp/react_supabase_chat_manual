@@ -22,7 +22,8 @@ export const messageRowSchema = z.object({
   user_id: z.string(),
   content: z.string(),
   message_type: z.string(),
-  created_at: z.string()
+  created_at: z.string(),
+  expires_at: z.string().nullable().optional()
 });
 
 export const messageWithMetaSchema = messageRowSchema.extend({

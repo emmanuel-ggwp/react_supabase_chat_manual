@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import type { AuthChangeEvent, Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import type { Database } from '@/types/database';
+import { config } from '@/config';
 
 type Profile = Database['public']['Tables']['profiles']['Row'];
 type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated';
@@ -41,7 +42,7 @@ type AuthProviderProps = {
   children: ReactNode;
 };
 
-const redirectUrl = import.meta.env.VITE_REDIRECT_URL || window.location.origin;
+const redirectUrl = config.redirectUrl || window.location.origin;
 
 export function AuthProvider({ children }: AuthProviderProps) {
   console.log('AuthProvider initialized with redirectUrl:', redirectUrl);

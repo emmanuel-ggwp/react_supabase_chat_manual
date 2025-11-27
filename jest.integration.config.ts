@@ -17,10 +17,11 @@ const config: Config = {
   },
   
   moduleNameMapper: {
+    '^@/config$': '<rootDir>/tests/mocks/config.ts',
+    '^@/lib/supabase$': '<rootDir>/tests/mocks/supabaseClient.ts',
     '^@/(.*)$': '<rootDir>/src/$1',
     '^(\\.{1,2}/.*)\\.js$': '$1',
-    '\\.(css|less|sass|scss)$': 'identity-obj-proxy',
-    '^@/lib/supabase$': '<rootDir>/tests/mocks/supabaseClient.ts',
+    '\\.(css|less|sass|scss)$': 'identity-obj-proxy'
   },
 
   transformIgnorePatterns: [

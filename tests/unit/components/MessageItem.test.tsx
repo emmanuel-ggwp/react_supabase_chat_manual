@@ -11,6 +11,7 @@ describe('MessageItem', () => {
     content: 'Hola equipo',
     message_type: 'text',
     created_at: new Date('2024-01-01T10:00:00Z').toISOString(),
+    expires_at: null,
     profile: {
       id: 'user-1',
       username: 'Ada Lovelace',

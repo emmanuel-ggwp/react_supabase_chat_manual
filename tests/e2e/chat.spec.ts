@@ -14,7 +14,7 @@ test.describe('Flujos de chat', () => {
     const search = page.getByPlaceholder('Buscar salas');
     await expect(search).toBeVisible();
 
-    await search.fill('general');
+    await search.fill('zzzzzz-no-existe');
     await expect(page.getByText('No se encontraron salas.')).toBeVisible();
     await expect(page.getByRole('button', { name: /crear nueva sala/i })).toBeVisible();
   });

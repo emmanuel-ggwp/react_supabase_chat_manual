@@ -370,6 +370,7 @@ export function ProfileDropdown({ onSignInRequest }: ProfileDropdownProps) {
         <button
           type="button"
           onClick={handleTriggerOpen}
+          data-testid="profile-dropdown-trigger"
           onMouseEnter={() => {
             if (!isMobileViewport) {
               clearDesktopCloseTimeout();

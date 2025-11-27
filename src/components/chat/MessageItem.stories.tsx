@@ -9,6 +9,7 @@ const baseMessage: MessageWithMeta = {
   content: 'Hola equipo, recuerden la reunión de las 10:00.',
   message_type: 'text',
   created_at: new Date().toISOString(),
+  expires_at: null,
   profile: {
     id: 'user-1',
     username: 'Ada Lovelace',

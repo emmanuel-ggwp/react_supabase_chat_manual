@@ -1,0 +1,6 @@
+Caracteristicas adicionales:
+Modo "Incógnito" por mensaje: En lugar de un chat entero secreto, permitir enviar un solo mensaje que se autodestruye o se difumina tras ser leído, dentro de una conversación normal.
+
+Sistema de "mensajes anclados" personales - Para marcar mensajes importantes sin afectar a otros
+
+Votación integrada - Para decisiones rápidas sin salir del chat
