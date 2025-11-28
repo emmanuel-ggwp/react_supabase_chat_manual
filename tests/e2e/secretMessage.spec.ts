@@ -4,8 +4,8 @@ const hasSupabaseEnv = Boolean(process.env.VITE_SUPABASE_URL && process.env.VITE
 
 test.skip(!hasSupabaseEnv, 'Configura VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY para ejecutar E2E de mensajes secretos.');
 
-const TEST_EMAIL = process.env.E2E_TEST_EMAIL ?? 'l.marcano.234@gmail.com';
-const TEST_PASSWORD = process.env.E2E_TEST_PASSWORD ?? '25723877Edmz';
+const TEST_EMAIL = process.env.E2E_TEST_EMAIL ?? 'emmanuel2013161997@gmail.com';
+const TEST_PASSWORD = process.env.E2E_TEST_PASSWORD ?? 'eN22XYPU2hnRqss';
 
 test.describe('Mensajes Secretos', () => {
   test('debería enviar y ver un mensaje secreto', async ({ browser }) => {
