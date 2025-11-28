@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { MessageList } from './MessageList';
+import type { PinnedMessageMeta } from './MessageList';
 import { MessageInput } from './MessageInput';
+import { PinnedMessagesBar } from './PinnedMessagesBar';
 import { useMessages } from '@/hooks/useMessages';
 import type { MessageWithMeta } from '@/hooks/useMessages';
 import type { RoomWithMeta } from '@/hooks/useRooms';
 import { useAuth } from '@/hooks/useAuth';
+import { usePinnedMessages } from '@/hooks/usePinnedMessages';
 
 type ChatContainerProps = {
   room: RoomWithMeta;
@@ -33,11 +36,89 @@ export function ChatContainer({ room, isMember, onJoinRoom, onMarkAsRead, joinEr
     clearError
   } = useMessages(isMember ? room.id : null);
 
+  const { pinnedIds, togglePin } = usePinnedMessages(isMember ? room.id : null);
+
   const [sendError, setSendError] = useState<string | null>(null);
   const [joinState, setJoinState] = useState<{ loading: boolean; error: string | null }>({ loading: false, error: null });
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const [autoScroll, setAutoScroll] = useState(true);
+
+  // Pinned messages visibility logic
+  const pinnedElementsRef = useRef<Map<string, { element: HTMLElement; meta: PinnedMessageMeta }>>(new Map());
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const [offscreenPinned, setOffscreenPinned] = useState<PinnedMessageMeta[]>([]);
+
+  const handlePinnedMessageElementsChange = useCallback((map: Map<string, { element: HTMLElement; meta: PinnedMessageMeta }>) => {
+    pinnedElementsRef.current = map;
+    
+    if (observerRef.current) {
+      observerRef.current.disconnect();
+    }
+
+    if (!scrollContainerRef.current || map.size === 0) {
+      setOffscreenPinned([]);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        setOffscreenPinned((prev) => {
+          const next = [...prev];
+          
+          entries.forEach((entry) => {
+            // Encontrar el ID basado en el elemento observado
+            let messageId: string | undefined;
+            for (const [id, data] of pinnedElementsRef.current.entries()) {
+              if (data.element === entry.target) {
+                messageId = id;
+                break;
+              }
+            }
+
+            if (!messageId) return;
+
+            const isVisible = entry.isIntersecting;
+            const index = next.findIndex((p) => p.id === messageId);
+
+            if (isVisible && index !== -1) {
+              // Si es visible y estaba en offscreen, quitarlo
+              next.splice(index, 1);
+            } else if (!isVisible && index === -1) {
+              // Si no es visible y no estaba, agregarlo
+              const meta = pinnedElementsRef.current.get(messageId)?.meta;
+              if (meta) next.push(meta);
+            }
+          });
+          
+          // Ordenar por fecha de creación para mantener consistencia visual
+          return next.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+        });
+      },
+      {
+        root: scrollContainerRef.current,
+        threshold: 0.1 // Considerar visible si al menos 10% está en pantalla
+      }
+    );
+
+    map.forEach(({ element }) => observer.observe(element));
+    observerRef.current = observer;
+  }, []);
+
+  const handlePinnedBarSelect = useCallback((id: string) => {
+    const entry = pinnedElementsRef.current.get(id);
+    if (!entry) return;
+    
+    entry.element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    // Desactivar autoscroll temporalmente para permitir ver el mensaje histórico
+    setAutoScroll(false);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      observerRef.current?.disconnect();
+    };
+  }, []);
 
   useEffect(() => {
     setSendError(null);
@@ -205,10 +286,17 @@ export function ChatContainer({ room, isMember, onJoinRoom, onMarkAsRead, joinEr
       ) : null}
 
       <div className="relative flex-1 overflow-hidden rounded-2xl border border-chat-surface/60 bg-chat-surface/70">
+        {offscreenPinned.length > 0 && (
+          <div className="absolute top-4 left-0 right-0 z-20 pointer-events-none">
+            <div className="pointer-events-auto">
+              <PinnedMessagesBar messages={offscreenPinned} onSelect={handlePinnedBarSelect} />
+            </div>
+          </div>
+        )}
         <div
           ref={scrollContainerRef}
           onScroll={handleScroll}
-          className="inset-0 flex flex-col space-y-6 overflow-y-auto px-4 py-6"
+          className="absolute inset-0 flex flex-col space-y-6 overflow-y-auto px-4 py-6"
         >
           {hasMore ? (
             <div className="flex justify-center">
@@ -232,7 +320,10 @@ export function ChatContainer({ room, isMember, onJoinRoom, onMarkAsRead, joinEr
               messages={messages}
               currentUserId={user?.id}
               typingUsers={typingUsers}
+              pinnedIds={pinnedIds}
+              onTogglePin={togglePin}
               onRetryMessage={handleRetryWrapper}
+              onPinnedMessageElementsChange={handlePinnedMessageElementsChange}
             />
           )}
 

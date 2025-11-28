@@ -219,6 +219,49 @@ export type Database = {
           }
         ];
       };
+      pinned_messages: {
+        Row: {
+          id: string;
+          user_id: string;
+          message_id: string;
+          room_id: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          message_id: string;
+          room_id: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          message_id?: string;
+          room_id?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'pinned_messages_user_id_fkey';
+            columns: ['user_id'];
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'pinned_messages_message_id_fkey';
+            columns: ['message_id'];
+            referencedRelation: 'messages';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'pinned_messages_room_id_fkey';
+            columns: ['room_id'];
+            referencedRelation: 'rooms';
+            referencedColumns: ['id'];
+          }
+        ];
+      };
     };
     Views: Record<string, never>;
     Functions: {

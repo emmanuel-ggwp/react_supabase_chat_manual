@@ -96,8 +96,8 @@ export function MainLayout({
         ) : null}
 
         <main className="flex min-h-0 flex-1 flex-col bg-gradient-to-br from-chat-background via-chat-background to-chat-surface/60">
-          <section className="flex-1 overflow-y-auto px-4 py-6 sm:px-6 lg:px-8">
-            <div className="mx-auto max-w-5xl space-y-6 text-slate-100">{children}</div>
+          <section className="flex h-full flex-1 flex-col px-4 py-2 sm:px-6 lg:px-8">
+            <div className="mx-auto flex h-full w-full max-w-5xl flex-col space-y-6 text-slate-100">{children}</div>
           </section>
           {footer !== undefined ? footer : <LayoutFooter />}
         </main>

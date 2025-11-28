@@ -1,6 +1,13 @@
-import { useMemo } from 'react';
+import { useMemo, useRef, useEffect } from 'react';
 import type { MessageWithMeta } from '@/hooks/useMessages';
 import { MessageItem } from './MessageItem';
+
+export type PinnedMessageMeta = {
+  id: string;
+  preview: string;
+  author: string;
+  createdAt: string;
+};
 
 const dateFormatter = new Intl.DateTimeFormat('es-ES', {
   weekday: 'short',
@@ -12,7 +19,10 @@ type MessageListProps = {
   messages: MessageWithMeta[];
   currentUserId?: string;
   typingUsers?: string[];
+  pinnedIds?: Set<string>;
+  onTogglePin?: (id: string) => void;
   onRetryMessage?: (message: MessageWithMeta) => void;
+  onPinnedMessageElementsChange?: (map: Map<string, { element: HTMLElement; meta: PinnedMessageMeta }>) => void;
 };
 
 type GroupedMessages = {
@@ -21,7 +31,9 @@ type GroupedMessages = {
   items: MessageWithMeta[];
 };
 
-export function MessageList({ messages, currentUserId, typingUsers = [], onRetryMessage }: MessageListProps) {
+export function MessageList({ messages, currentUserId, typingUsers = [], pinnedIds, onTogglePin, onRetryMessage, onPinnedMessageElementsChange }: MessageListProps) {
+  const pinnedElementsRef = useRef<Map<string, { element: HTMLElement; meta: PinnedMessageMeta }>>(new Map());
+
   const grouped = useMemo<GroupedMessages[]>(() => {
     const groups = new Map<string, MessageWithMeta[]>();
 
@@ -58,15 +70,44 @@ export function MessageList({ messages, currentUserId, typingUsers = [], onRetry
 
               const showUsername = !isOwn && (!previous || previous.user_id !== message.user_id);
               const showAvatar = !isOwn && (!next || next.user_id !== message.user_id);
+              const isPinned = pinnedIds?.has(message.id);
 
               return (
                 <MessageItem
                   key={message.id}
                   message={message}
                   isOwn={isOwn}
+                  isPinned={isPinned}
+                  onTogglePin={onTogglePin}
                   showAvatar={showAvatar}
                   showUsername={showUsername}
                   onRetry={onRetryMessage}
+                  containerRef={(el) => {
+                    if (!isPinned || !onPinnedMessageElementsChange) return;
+
+                    if (el) {
+                      let preview = message.content;
+                      if (message.is_secret) preview = 'Mensaje secreto';
+                      else if (message.message_type === 'image') preview = 'Imagen';
+                      else if (preview.length > 60) preview = preview.slice(0, 60) + '...';
+
+                      const meta: PinnedMessageMeta = {
+                        id: message.id,
+                        preview,
+                        author: message.profile?.username ?? 'Usuario',
+                        createdAt: message.created_at
+                      };
+                      
+                      pinnedElementsRef.current.set(message.id, { element: el, meta });
+                    } else {
+                      pinnedElementsRef.current.delete(message.id);
+                    }
+                    
+                    // Notificar cambios en el próximo ciclo para evitar loops
+                    requestAnimationFrame(() => {
+                      onPinnedMessageElementsChange(new Map(pinnedElementsRef.current));
+                    });
+                  }}
                 />
               );
             })}
